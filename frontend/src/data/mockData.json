@@ -1,0 +1,277 @@
+{
+  "users": [
+    {
+      "id": "user-000",
+      "email": "admin@empresa.com",
+      "cpf": "111.222.333-44",
+      "matricula": "ADM-001",
+      "nome": "Admin do Sistema",
+      "departamento_id": "dept-001",
+      "departamento": "RECURSOS HUMANOS",
+      "cargo": "DIRETORIA",
+      "role": "ADMIN",
+      "avatar": "https://via.placeholder.com/40?text=AD",
+      "ativo": true
+    },
+    {
+      "id": "user-001",
+      "email": "maria@empresa.com",
+      "cpf": "123.456.789-00",
+      "matricula": "RH-001",
+      "nome": "Maria Silva",
+      "departamento_id": "dept-001",
+      "departamento": "RECURSOS HUMANOS",
+      "cargo": "GERENTE",
+      "role": "GERENTE_RH",
+      "avatar": "https://via.placeholder.com/40?text=MS",
+      "ativo": true
+    },
+    {
+      "id": "user-002",
+      "email": "marcia@empresa.com",
+      "cpf": "987.654.321-00",
+      "matricula": "ADMIN-001",
+      "nome": "Marcia Santos",
+      "departamento_id": "dept-002",
+      "departamento": "ADMINISTRATIVO",
+      "cargo": "ANALISTA",
+      "role": "COLABORADOR",
+      "avatar": "https://via.placeholder.com/40?text=MCS",
+      "ativo": true
+    },
+    {
+      "id": "user-003",
+      "email": "joao@empresa.com",
+      "cpf": "456.789.123-00",
+      "matricula": "ADMIN-002",
+      "nome": "João Santos",
+      "departamento_id": "dept-002",
+      "departamento": "ADMINISTRATIVO",
+      "cargo": "ASSISTENTE",
+      "role": "COLABORADOR",
+      "avatar": "https://via.placeholder.com/40?text=JS",
+      "ativo": true
+    },
+    {
+      "id": "user-006",
+      "email": "roberto@empresa.com",
+      "cpf": "654.321.987-00",
+      "matricula": "ADMIN-GTE-001",
+      "nome": "Roberto Alves",
+      "departamento_id": "dept-002",
+      "departamento": "ADMINISTRATIVO",
+      "cargo": "COORDENADOR",
+      "role": "GERENTE_DEPARTAMENTO",
+      "avatar": "https://via.placeholder.com/40?text=RA",
+      "ativo": true
+    },
+    {
+      "id": "user-004",
+      "email": "ana@empresa.com",
+      "cpf": "789.123.456-00",
+      "matricula": "TI-001",
+      "nome": "Ana Costa",
+      "departamento_id": "dept-003",
+      "departamento": "TECNOLOGIA",
+      "cargo": "ESPECIALISTA",
+      "role": "COLABORADOR",
+      "avatar": "https://via.placeholder.com/40?text=AC",
+      "ativo": true
+    },
+    {
+      "id": "user-005",
+      "email": "pedro@empresa.com",
+      "cpf": "321.654.987-00",
+      "matricula": "VENDAS-001",
+      "nome": "Pedro Oliveira",
+      "departamento_id": "dept-004",
+      "departamento": "VENDAS",
+      "cargo": "ANALISTA",
+      "role": "COLABORADOR",
+      "avatar": "https://via.placeholder.com/40?text=PO",
+      "ativo": true
+    }
+  ],
+
+  "departments": [
+    { "id": "dept-001", "nome": "RECURSOS HUMANOS", "descricao": "Gestão de pessoas e desenvolvimento" },
+    { "id": "dept-002", "nome": "ADMINISTRATIVO", "descricao": "Operações administrativas" },
+    { "id": "dept-003", "nome": "TECNOLOGIA", "descricao": "TI e infraestrutura" },
+    { "id": "dept-004", "nome": "VENDAS", "descricao": "Comercial e pós-venda" },
+    { "id": "dept-005", "nome": "FINANCEIRO", "descricao": "Controladoria e contabilidade" }
+  ],
+
+  "indicators": [
+    {
+      "id": "ind-001",
+      "departamento_id": "dept-002",
+      "departamento": "ADMINISTRATIVO",
+      "usuario_responsavel_id": "user-002",
+      "responsavel": "Marcia Santos",
+      "nome": "POLÍTICA DE COMPRAS COM O FORNECEDOR",
+      "peso": 20,
+      "status": "EM_ANDAMENTO",
+      "atendimento": 0,
+      "detalhamento": "Desenvolver uma política de compras estratégica com critérios de qualidade, preço e prazos.",
+      "objetivo": "Estabelecer diretrizes claras para seleção e relacionamento com fornecedores.",
+      "data_inicio": "2026-01-01",
+      "data_fim": "2026-12-31",
+      "concluido_em": null,
+      "criado_em": "2026-01-10T08:00:00Z",
+      "atualizado_em": "2026-01-10T08:00:00Z",
+      "anexos": []
+    },
+    {
+      "id": "ind-002",
+      "departamento_id": "dept-002",
+      "departamento": "ADMINISTRATIVO",
+      "usuario_responsavel_id": "user-002",
+      "responsavel": "Marcia Santos",
+      "nome": "REALIZAR 20 HORAS DE INTEGRAÇÃO COMPRADA",
+      "peso": 20,
+      "status": "EM_ANDAMENTO",
+      "atendimento": 0,
+      "detalhamento": "Concluídas 2 horas de treinamento de 20 horas planejadas.",
+      "objetivo": "Capacitar equipe em processos de integração de sistemas.",
+      "data_inicio": "2026-01-01",
+      "data_fim": "2026-06-30",
+      "concluido_em": null,
+      "criado_em": "2026-01-15T09:30:00Z",
+      "atualizado_em": "2026-09-08T14:00:00Z",
+      "anexos": []
+    },
+    {
+      "id": "ind-003",
+      "departamento_id": "dept-002",
+      "departamento": "ADMINISTRATIVO",
+      "usuario_responsavel_id": "user-003",
+      "responsavel": "João Santos",
+      "nome": "REVISÃO DE PROCESSOS ADMINISTRATIVOS",
+      "peso": 30,
+      "status": "CONCLUIDO",
+      "atendimento": 100,
+      "detalhamento": "Revisão completa de todos os processos administrativos documentados.",
+      "objetivo": "Identificar oportunidades de melhoria e otimização.",
+      "data_inicio": "2026-01-01",
+      "data_fim": "2026-08-31",
+      "concluido_em": "2026-09-05T16:45:00Z",
+      "criado_em": "2026-01-20T10:15:00Z",
+      "atualizado_em": "2026-09-05T16:45:00Z",
+      "anexos": [
+        {
+          "id": "att-001",
+          "nome_arquivo": "Relatorio_Processos_2026.pdf",
+          "url": "#",
+          "tipo_mime": "application/pdf",
+          "tamanho_bytes": 2457600,
+          "criado_em": "2026-09-05T16:45:00Z"
+        }
+      ]
+    },
+    {
+      "id": "ind-004",
+      "departamento_id": "dept-003",
+      "departamento": "TECNOLOGIA",
+      "usuario_responsavel_id": "user-004",
+      "responsavel": "Ana Costa",
+      "nome": "IMPLEMENTAÇÃO DE SEGURANÇA DE DADOS",
+      "peso": 25,
+      "status": "EM_ANDAMENTO",
+      "atendimento": 0,
+      "detalhamento": "Implementação de políticas de segurança, backups e disaster recovery.",
+      "objetivo": "Garantir conformidade com LGPD e proteção de dados corporativos.",
+      "data_inicio": "2026-02-01",
+      "data_fim": "2026-12-31",
+      "concluido_em": null,
+      "criado_em": "2026-02-05T11:00:00Z",
+      "atualizado_em": "2026-09-01T13:20:00Z",
+      "anexos": []
+    },
+    {
+      "id": "ind-005",
+      "departamento_id": "dept-003",
+      "departamento": "TECNOLOGIA",
+      "usuario_responsavel_id": "user-004",
+      "responsavel": "Ana Costa",
+      "nome": "MIGRAÇÃO PARA CLOUD",
+      "peso": 35,
+      "status": "ATRASADO",
+      "atendimento": 0,
+      "detalhamento": "Migração da infraestrutura on-premise para Azure Cloud.",
+      "objetivo": "Aumentar disponibilidade, escalabilidade e reduzir custos operacionais.",
+      "data_inicio": "2026-03-01",
+      "data_fim": "2026-09-30",
+      "concluido_em": null,
+      "criado_em": "2026-03-10T08:30:00Z",
+      "atualizado_em": "2026-09-08T09:15:00Z",
+      "anexos": []
+    },
+    {
+      "id": "ind-006",
+      "departamento_id": "dept-004",
+      "departamento": "VENDAS",
+      "usuario_responsavel_id": "user-005",
+      "responsavel": "Pedro Oliveira",
+      "nome": "AUMENTO DE 20% NA CARTEIRA DE CLIENTES",
+      "peso": 40,
+      "status": "EM_ANDAMENTO",
+      "atendimento": 0,
+      "detalhamento": "Prospecção ativa e fechamento de 15 novos clientes enterprise.",
+      "objetivo": "Expandir base de clientes e aumentar receita de vendas.",
+      "data_inicio": "2026-01-01",
+      "data_fim": "2026-12-31",
+      "concluido_em": null,
+      "criado_em": "2026-01-05T07:45:00Z",
+      "atualizado_em": "2026-09-07T15:30:00Z",
+      "anexos": [
+        {
+          "id": "att-002",
+          "nome_arquivo": "Prospect_Q3_2026.xlsx",
+          "url": "#",
+          "tipo_mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "tamanho_bytes": 512000,
+          "criado_em": "2026-09-07T15:30:00Z"
+        }
+      ]
+    }
+  ],
+
+  "indicador_updates": [
+    {
+      "id": "upd-001",
+      "indicador_id": "ind-003",
+      "usuario_alterou_id": "user-003",
+      "usuario_nome": "João Santos",
+      "tipo_alteracao": "CONCLUSAO",
+      "campo_alterado": "status",
+      "valor_anterior": "EM_ANDAMENTO",
+      "valor_novo": "CONCLUIDO",
+      "motivo": "Revisão finalizada com sucesso",
+      "criado_em": "2026-09-05T16:45:00Z"
+    },
+    {
+      "id": "upd-002",
+      "indicador_id": "ind-003",
+      "usuario_alterou_id": "user-003",
+      "usuario_nome": "João Santos",
+      "tipo_alteracao": "CRIACAO",
+      "campo_alterado": null,
+      "valor_anterior": null,
+      "valor_novo": "ind-003",
+      "motivo": "Indicador criado",
+      "criado_em": "2026-01-20T10:15:00Z"
+    },
+    {
+      "id": "upd-003",
+      "indicador_id": "ind-005",
+      "usuario_alterou_id": "user-001",
+      "usuario_nome": "Maria Silva",
+      "tipo_alteracao": "EDICAO",
+      "campo_alterado": "status",
+      "valor_anterior": "EM_ANDAMENTO",
+      "valor_novo": "ATRASADO",
+      "motivo": "Passou data de conclusão planejada",
+      "criado_em": "2026-10-01T10:00:00Z"
+    }
+  ]
+}
