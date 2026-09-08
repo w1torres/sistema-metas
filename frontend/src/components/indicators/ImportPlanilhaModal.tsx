@@ -8,7 +8,8 @@ import { useCargoStore } from '../../store/cargoStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import { csvRowsToObjects, downloadCSV, parseCSV, toCSV } from '../../utils/csv';
 import { IMPORT_TEMPLATE_HEADERS } from '../../utils/constants';
-import { validateDatas, validateNome, validatePeso } from '../../utils/validators';
+import { validateNome, validatePeso } from '../../utils/validators';
+import { getSafraAtual, parseSafraLabel } from '../../utils/safra';
 
 interface ImportPlanilhaModalProps {
   isOpen: boolean;
@@ -54,8 +55,7 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
       'REDUZIR TEMPO DE RESPOSTA DE CHAMADOS',
       '25',
       'Reduzir SLA médio de atendimento de TI',
-      '2026-01-01',
-      '2026-12-31',
+      getSafraAtual().label.replace('Safra ', ''),
     ];
     downloadCSV('modelo_importacao_indicadores.csv', toCSV(IMPORT_TEMPLATE_HEADERS, [exemplo]));
   }
@@ -84,8 +84,7 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
         const nomeIndicador = row['nome_indicador'];
         const peso = Number(row['peso']);
         const objetivo = row['objetivo'] ?? '';
-        const dataInicio = row['data_inicio'];
-        const dataFim = row['data_fim'];
+        const safra = parseSafraLabel(row['safra'] ?? '');
 
         if (!nome || !email || !departamento) {
           erros.push({ linha, motivo: 'Colaborador, email e departamento são obrigatórios' });
@@ -104,9 +103,8 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
           return;
         }
 
-        const datasError = validateDatas(dataInicio ?? '', dataFim ?? '');
-        if (datasError) {
-          erros.push({ linha, motivo: datasError });
+        if (!safra) {
+          erros.push({ linha, motivo: `Safra: informe no formato "25/26" (valor recebido: "${row['safra'] ?? ''}")` });
           return;
         }
 
@@ -131,8 +129,8 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
             usuario_responsavel_id: colaborador.id,
             responsavel: colaborador.nome,
             objetivo,
-            data_inicio: dataInicio,
-            data_fim: dataFim,
+            data_inicio: safra.dataInicio,
+            data_fim: safra.dataFim,
           },
           currentUser.id,
           currentUser.nome,
@@ -155,7 +153,9 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
           Envie um arquivo CSV com uma linha por indicador. Colaboradores, departamentos e cargos citados que ainda
           não existirem no sistema serão criados automaticamente (como Colaborador ativo). A coluna{' '}
           <code>cargo</code> é opcional — se vazia, o colaborador é criado sem cargo definido e não recebe múltiplo
-          de PPR até alguém corrigir isso em Usuários.
+          de PPR até alguém corrigir isso em Usuários. A coluna <code>safra</code> define o período do indicador (ex.:{' '}
+          <code>25/26</code> vira 01/05/2025–30/04/2026) — todo indicador segue exatamente o período da safra
+          informada.
         </p>
 
         <div className="rounded-md border border-border bg-gray-50 p-3 text-xs text-secondary">

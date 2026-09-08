@@ -36,7 +36,10 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         <div className="flex items-center gap-3">
           <div className="hidden text-right sm:block">
             <p className="text-sm font-medium text-ink">{user.nome}</p>
-            <p className="text-xs text-secondary">{ROLE_LABELS[user.role]}</p>
+            <p className="text-xs text-secondary">
+              {ROLE_LABELS[user.role]}
+              {user.role === 'GERENTE_DEPARTAMENTO' && ` — ${user.departamento}`}
+            </p>
           </div>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
             {initials(user.nome)}

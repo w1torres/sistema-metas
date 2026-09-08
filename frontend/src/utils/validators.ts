@@ -12,12 +12,6 @@ export function validatePeso(peso: number): string | null {
   return null;
 }
 
-export function validateDatas(dataInicio: string, dataFim: string): string | null {
-  if (!dataInicio || !dataFim) return 'Datas de início e fim são obrigatórias';
-  if (new Date(dataFim) <= new Date(dataInicio)) return 'Data de fim deve ser posterior à data de início';
-  return null;
-}
-
 export function validateEmail(email: string): string | null {
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email.trim()) return 'Email é obrigatório';

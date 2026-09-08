@@ -1,14 +1,18 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import { useUserStore } from '../../store/userStore';
 import { usePPRStore } from '../../store/pprStore';
 import BasicCharts from '../charts/BasicCharts';
 import Button from '../common/Button';
+import { Select } from '../common/Input';
 import { formatPercent } from '../../utils/formatters';
 import { calcularMediaPorColaborador, calcularPercentualPonderado } from '../../utils/ppr';
+import { getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
 import clsx from 'clsx';
 import { downloadCSV, toCSV } from '../../utils/csv';
 import type { Indicador, PPRFaixa, User } from '../../types';
+
+const SAFRAS = listSafras();
 
 interface DepartamentoResumo {
   departamento: string;
@@ -68,9 +72,15 @@ function summarizeByColaborador(
 }
 
 export default function RelatoriosPage() {
-  const indicators = useIndicatorStore((s) => s.indicators);
+  const todosIndicadores = useIndicatorStore((s) => s.indicators);
   const users = useUserStore((s) => s.users);
   const faixaPara = usePPRStore((s) => s.faixaPara);
+  const [safraId, setSafraId] = useState(getSafraAtual().id);
+
+  const indicators = useMemo(
+    () => (safraId ? todosIndicadores.filter((i) => getSafraForDate(i.data_inicio).id === safraId) : todosIndicadores),
+    [todosIndicadores, safraId],
+  );
 
   const porDepartamento = useMemo(() => summarizeByDepartamento(indicators), [indicators]);
   const porColaborador = useMemo(
@@ -99,9 +109,20 @@ export default function RelatoriosPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-ink">Relatórios</h1>
-        <p className="text-sm text-secondary">Consolidado de indicadores por departamento e por colaborador</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-ink">Relatórios</h1>
+          <p className="text-sm text-secondary">Consolidado de indicadores por departamento e por colaborador</p>
+        </div>
+        <div className="w-full sm:w-48">
+          <Select
+            label="Safra"
+            value={safraId}
+            onChange={setSafraId}
+            placeholder="Todas"
+            options={SAFRAS.map((s) => ({ value: s.id, label: s.label }))}
+          />
+        </div>
       </div>
 
       <BasicCharts indicators={indicators} />

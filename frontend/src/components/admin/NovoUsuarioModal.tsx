@@ -159,6 +159,17 @@ export default function NovoUsuarioModal({ isOpen, onClose }: NovoUsuarioModalPr
           options={ROLE_OPTIONS.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
         />
 
+        {role === 'GERENTE_DEPARTAMENTO' && (
+          <p className="rounded-md bg-primary/5 p-3 text-xs text-secondary">
+            Este usuário vai gerenciar exatamente o departamento selecionado acima
+            {departamentoId || novoDepartamento
+              ? ` (${novoDepartamento.trim() || departments.find((d) => d.id === departamentoId)?.nome})`
+              : ''}
+            . Ele só verá e poderá aprovar solicitações de conclusão de colaboradores desse mesmo departamento — para
+            gerenciar outro departamento, cadastre um usuário separado.
+          </p>
+        )}
+
         <p className="rounded-md bg-primary/5 p-3 text-xs text-secondary">
           O login com Microsoft (Entra ID) será habilitado na Etapa 2. Por enquanto, esta pessoa já pode acessar o
           protótipo usando o email corporativo cadastrado com qualquer senha na tela de login.

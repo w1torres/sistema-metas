@@ -9,12 +9,23 @@ interface NovaFaixaInput {
   multiplo: number;
 }
 
+interface FaixaRascunho {
+  faixaMin: number;
+  faixaMax: number;
+  multiplo: number;
+}
+
 interface PPRState {
   faixas: PPRFaixa[];
   addFaixa: (input: NovaFaixaInput) => { ok: true } | { ok: false; error: string };
   updateFaixa: (id: string, input: NovaFaixaInput) => { ok: true } | { ok: false; error: string };
   deleteFaixa: (id: string) => void;
   faixaPara: (cargo: string, percentual: number) => PPRFaixa | undefined;
+  // Substitui de uma vez todas as faixas de um cargo — usado pela edição em lote da
+  // Tabela PPR, para evitar falsos positivos de sobreposição ao salvar várias faixas
+  // editadas ao mesmo tempo (validar sequencialmente contra o estado antigo gera
+  // conflitos espúrios mesmo quando o conjunto final é consistente).
+  substituirFaixasDoCargo: (cargo: string, faixas: FaixaRascunho[]) => { ok: true } | { ok: false; error: string };
 }
 
 function newId(): string {
@@ -98,6 +109,37 @@ export const usePPRStore = create<PPRState>()(
 
       deleteFaixa: (id) => {
         set((state) => ({ faixas: state.faixas.filter((f) => f.id !== id) }));
+      },
+
+      substituirFaixasDoCargo: (cargo, faixas) => {
+        const cargoNorm = cargo.trim().toUpperCase();
+        if (!cargoNorm) return { ok: false, error: 'Cargo é obrigatório' };
+
+        // Lista vazia = remover o cargo inteiro da tabela
+        if (faixas.length === 0) {
+          set((state) => ({ faixas: state.faixas.filter((f) => f.cargo !== cargoNorm) }));
+          return { ok: true };
+        }
+
+        for (const f of faixas) {
+          if (Number.isNaN(f.faixaMin) || f.faixaMin < 0 || f.faixaMin > 999) return { ok: false, error: 'Faixa mínima inválida' };
+          if (Number.isNaN(f.faixaMax) || f.faixaMax <= f.faixaMin) return { ok: false, error: 'Faixa máxima deve ser maior que a mínima' };
+          if (Number.isNaN(f.multiplo) || f.multiplo < 0) return { ok: false, error: 'Múltiplo não pode ser negativo' };
+        }
+
+        const ordenadas = [...faixas].sort((a, b) => a.faixaMin - b.faixaMin);
+        for (let i = 1; i < ordenadas.length; i += 1) {
+          if (ordenadas[i].faixaMin < ordenadas[i - 1].faixaMax) {
+            return {
+              ok: false,
+              error: `As faixas ${ordenadas[i - 1].faixaMin}%–${ordenadas[i - 1].faixaMax}% e ${ordenadas[i].faixaMin}%–${ordenadas[i].faixaMax}% se sobrepõem`,
+            };
+          }
+        }
+
+        const novasFaixas: PPRFaixa[] = ordenadas.map((f) => ({ id: newId(), cargo: cargoNorm, ...f }));
+        set((state) => ({ faixas: [...state.faixas.filter((f) => f.cargo !== cargoNorm), ...novasFaixas] }));
+        return { ok: true };
       },
 
       faixaPara: (cargo, percentual) => {

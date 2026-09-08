@@ -2,6 +2,7 @@ import type { Indicador } from '../../types';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
 import { formatDate } from '../../utils/formatters';
+import { getSafraForDate } from '../../utils/safra';
 
 interface IndicadorRowProps {
   indicador: Indicador;
@@ -11,6 +12,8 @@ interface IndicadorRowProps {
 }
 
 export default function IndicadorRow({ indicador, onEditar, onMudarResponsavel, onHistorico }: IndicadorRowProps) {
+  const safra = getSafraForDate(indicador.data_inicio);
+
   return (
     <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
       <div className="min-w-0 flex-1">
@@ -18,7 +21,7 @@ export default function IndicadorRow({ indicador, onEditar, onMudarResponsavel, 
           {indicador.nome}
         </p>
         <p className="text-xs text-secondary">
-          Peso: {indicador.peso}% · Prazo: {formatDate(indicador.data_fim)}
+          {safra.label} · Peso: {indicador.peso}% · Prazo: {formatDate(indicador.data_fim)}
         </p>
       </div>
 

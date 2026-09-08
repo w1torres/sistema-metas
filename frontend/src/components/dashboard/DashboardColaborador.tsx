@@ -9,12 +9,14 @@ import AnexarDocumentoModal from '../indicators/AnexarDocumentoModal';
 import HistoricoModal from '../indicators/HistoricoModal';
 import SolicitarConclusaoModal from '../indicators/SolicitarConclusaoModal';
 import Button from '../common/Button';
-import { Input } from '../common/Input';
+import { Input, Select } from '../common/Input';
+import { getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
 import clsx from 'clsx';
 
 type FiltroStatus = 'TODOS' | 'EM_ANDAMENTO' | 'AGUARDANDO' | 'CONCLUIDO';
 
 const STATUS_PENDENTES = ['AGUARDANDO_APROVACAO_GESTOR', 'AGUARDANDO_APROVACAO_RH'];
+const SAFRAS = listSafras();
 
 const PAGE_STEP = 5;
 
@@ -32,6 +34,7 @@ export default function DashboardColaborador() {
   } = useIndicatorStore();
 
   const [filtro, setFiltro] = useState<FiltroStatus>('TODOS');
+  const [safraId, setSafraId] = useState(getSafraAtual().id);
   const [busca, setBusca] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
   const [anexarId, setAnexarId] = useState<string | null>(null);
@@ -48,10 +51,11 @@ export default function DashboardColaborador() {
       meusIndicadores.filter((i) => {
         if (filtro === 'AGUARDANDO' && !STATUS_PENDENTES.includes(i.status)) return false;
         if (filtro !== 'TODOS' && filtro !== 'AGUARDANDO' && i.status !== filtro) return false;
+        if (safraId && getSafraForDate(i.data_inicio).id !== safraId) return false;
         if (busca && !i.nome.toLowerCase().includes(busca.toLowerCase())) return false;
         return true;
       }),
-    [meusIndicadores, filtro, busca],
+    [meusIndicadores, filtro, safraId, busca],
   );
 
   const visiveis = filtrados.slice(0, visibleCount);
@@ -105,8 +109,19 @@ export default function DashboardColaborador() {
             </button>
           ))}
         </div>
-        <div className="w-full sm:w-64">
-          <Input label="" placeholder="Buscar indicador..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <div className="flex w-full gap-2 sm:w-auto">
+          <div className="w-40 shrink-0">
+            <Select
+              label=""
+              value={safraId}
+              onChange={setSafraId}
+              placeholder="Todas as safras"
+              options={SAFRAS.map((s) => ({ value: s.id, label: s.label }))}
+            />
+          </div>
+          <div className="w-full sm:w-64">
+            <Input label="" placeholder="Buscar indicador..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+          </div>
         </div>
       </div>
 

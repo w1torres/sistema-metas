@@ -22,8 +22,7 @@ export const IMPORT_TEMPLATE_HEADERS = [
   'nome_indicador',
   'peso',
   'objetivo',
-  'data_inicio',
-  'data_fim',
+  'safra',
 ];
 
 export const STATUS_META: Record<IndicadorStatus, { label: string; badge: string; icon: string }> = {

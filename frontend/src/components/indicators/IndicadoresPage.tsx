@@ -10,7 +10,10 @@ import Button from '../common/Button';
 import { Input, Select } from '../common/Input';
 import { PAGE_SIZE, STATUS_META, STATUS_OPTIONS } from '../../utils/constants';
 import { downloadCSV, toCSV } from '../../utils/csv';
+import { getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
 import type { Indicador } from '../../types';
+
+const SAFRAS = listSafras();
 
 interface ColaboradorGrupo {
   responsavelId: string;
@@ -25,6 +28,7 @@ export default function IndicadoresPage() {
 
   const [departamento, setDepartamento] = useState('');
   const [status, setStatus] = useState('');
+  const [safraId, setSafraId] = useState(getSafraAtual().id);
   const [busca, setBusca] = useState('');
   const [pagina, setPagina] = useState(1);
 
@@ -41,13 +45,14 @@ export default function IndicadoresPage() {
       indicators.filter((i) => {
         if (departamento && i.departamento_id !== departamento) return false;
         if (status && i.status !== status) return false;
+        if (safraId && getSafraForDate(i.data_inicio).id !== safraId) return false;
         if (busca) {
           const term = busca.toLowerCase();
           if (!i.nome.toLowerCase().includes(term) && !i.responsavel.toLowerCase().includes(term)) return false;
         }
         return true;
       }),
-    [indicators, departamento, status, busca],
+    [indicators, departamento, status, safraId, busca],
   );
 
   const grupos = useMemo(() => {
@@ -81,9 +86,10 @@ export default function IndicadoresPage() {
   const indicadorHistorico = indicators.find((i) => i.id === historicoId) ?? null;
 
   function handleExportCSV() {
-    const header = ['Nome', 'Departamento', 'Responsável', 'Peso', 'Status', 'Início', 'Prazo'];
+    const header = ['Nome', 'Safra', 'Departamento', 'Responsável', 'Peso', 'Status', 'Início', 'Prazo'];
     const rows = filtrados.map((i) => [
       i.nome,
+      getSafraForDate(i.data_inicio).label,
       i.departamento,
       i.responsavel,
       `${i.peso}%`,
@@ -114,7 +120,14 @@ export default function IndicadoresPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-white p-4 shadow-sm sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+        <Select
+          label="Safra"
+          value={safraId}
+          onChange={(value) => updateFiltro(setSafraId, value)}
+          placeholder="Todas"
+          options={SAFRAS.map((s) => ({ value: s.id, label: s.label }))}
+        />
         <Select
           label="Departamento"
           value={departamento}

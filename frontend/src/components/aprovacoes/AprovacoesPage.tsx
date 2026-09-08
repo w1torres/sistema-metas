@@ -118,7 +118,7 @@ export default function AprovacoesPage() {
         <h1 className="text-2xl font-bold text-ink">Aprovações</h1>
         <p className="text-sm text-secondary">
           {isGestorDepartamento
-            ? 'Indicadores do seu departamento que colaboradores marcaram como concluídos, aguardando sua avaliação.'
+            ? `Indicadores do departamento ${user.departamento} que colaboradores marcaram como concluídos, aguardando sua avaliação. Você só vê solicitações do seu próprio departamento.`
             : 'Fluxo de conclusão: o gestor do departamento avalia primeiro, depois o RH dá a avaliação final — só então o peso conta para o colaborador.'}
         </p>
       </div>

@@ -2,6 +2,7 @@ import type { Indicador } from '../../types';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
 import { formatDate, formatFileSize } from '../../utils/formatters';
+import { getSafraForDate } from '../../utils/safra';
 
 interface IndicadorCardProps {
   indicador: Indicador;
@@ -25,6 +26,7 @@ export default function IndicadorCard({
   const { status } = indicador;
   const isConcluido = status === 'CONCLUIDO';
   const isPendente = status === 'AGUARDANDO_APROVACAO_GESTOR' || status === 'AGUARDANDO_APROVACAO_RH';
+  const safra = getSafraForDate(indicador.data_inicio);
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-white p-4 shadow-sm">
@@ -33,7 +35,8 @@ export default function IndicadorCard({
         <Badge status={indicador.status} />
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-secondary">
+      <div className="flex flex-wrap items-center gap-3 text-xs text-secondary">
+        <span className="rounded bg-gray-100 px-1.5 py-0.5 font-medium text-ink">{safra.label}</span>
         <span>
           Peso: <span className="font-medium text-ink">{indicador.peso}%</span>
         </span>

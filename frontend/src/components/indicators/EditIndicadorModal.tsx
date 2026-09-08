@@ -9,7 +9,11 @@ import { useAuthStore } from '../../store/authStore';
 import { useUserStore } from '../../store/userStore';
 import { useDepartmentStore } from '../../store/departmentStore';
 import { STATUS_EDIT_OPTIONS, STATUS_META } from '../../utils/constants';
-import { validateDatas, validateNome, validatePeso } from '../../utils/validators';
+import { validateNome, validatePeso } from '../../utils/validators';
+import { findSafraById, getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
+import { formatDate } from '../../utils/formatters';
+
+const SAFRAS = listSafras();
 
 interface EditIndicadorModalProps {
   isOpen: boolean;
@@ -24,8 +28,7 @@ interface FormState {
   peso: string;
   status: IndicadorStatus;
   objetivo: string;
-  data_inicio: string;
-  data_fim: string;
+  safraId: string;
 }
 
 function toFormState(indicador: Indicador | null): FormState {
@@ -37,8 +40,7 @@ function toFormState(indicador: Indicador | null): FormState {
       peso: '',
       status: 'EM_ANDAMENTO',
       objetivo: '',
-      data_inicio: '',
-      data_fim: '',
+      safraId: getSafraAtual().id,
     };
   }
   return {
@@ -48,8 +50,7 @@ function toFormState(indicador: Indicador | null): FormState {
     peso: String(indicador.peso),
     status: indicador.status,
     objetivo: indicador.objetivo,
-    data_inicio: indicador.data_inicio,
-    data_fim: indicador.data_fim,
+    safraId: getSafraForDate(indicador.data_inicio).id,
   };
 }
 
@@ -73,21 +74,20 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
     ? ativos.filter((u) => u.departamento_id === form.departamento_id)
     : ativos;
   const statusControladoPeloFluxo = !!indicador && !STATUS_EDIT_OPTIONS.includes(indicador.status);
+  const safraSelecionada = findSafraById(SAFRAS, form.safraId);
 
   function handleSubmit() {
-    if (!currentUser) return;
+    if (!currentUser || !safraSelecionada) return;
 
     const nomeError = validateNome(form.nome);
     const peso = Number(form.peso);
     const pesoError = validatePeso(peso);
-    const datasError = validateDatas(form.data_inicio, form.data_fim);
     const deptError = !form.departamento_id ? 'Departamento é obrigatório' : null;
     const respError = !form.usuario_responsavel_id ? 'Responsável é obrigatório' : null;
 
     const nextErrors: Record<string, string> = {};
     if (nomeError) nextErrors.nome = nomeError;
     if (pesoError) nextErrors.peso = pesoError;
-    if (datasError) nextErrors.datas = datasError;
     if (deptError) nextErrors.departamento_id = deptError;
     if (respError) nextErrors.usuario_responsavel_id = respError;
 
@@ -109,8 +109,8 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
           usuario_responsavel_id: responsavel.id,
           responsavel: responsavel.nome,
           objetivo: form.objetivo,
-          data_inicio: form.data_inicio,
-          data_fim: form.data_fim,
+          data_inicio: safraSelecionada.dataInicio,
+          data_fim: safraSelecionada.dataFim,
         },
         currentUser.id,
         currentUser.nome,
@@ -124,8 +124,8 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
           peso,
           status: form.status,
           objetivo: form.objetivo,
-          data_inicio: form.data_inicio,
-          data_fim: form.data_fim,
+          data_inicio: safraSelecionada.dataInicio,
+          data_fim: safraSelecionada.dataFim,
         },
         currentUser.id,
         currentUser.nome,
@@ -230,23 +230,18 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
           rows={3}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Data de Início"
-            type="date"
-            required
-            value={form.data_inicio}
-            onChange={(e) => setForm((f) => ({ ...f, data_inicio: e.target.value }))}
-          />
-          <Input
-            label="Data de Fim / Prazo"
-            type="date"
-            required
-            value={form.data_fim}
-            onChange={(e) => setForm((f) => ({ ...f, data_fim: e.target.value }))}
-          />
-        </div>
-        {errors.datas && <p className="text-sm text-danger">{errors.datas}</p>}
+        <Select
+          label="Safra"
+          required
+          value={form.safraId}
+          onChange={(value) => setForm((f) => ({ ...f, safraId: value }))}
+          options={SAFRAS.map((s) => ({ value: s.id, label: s.label }))}
+        />
+        {safraSelecionada && (
+          <p className="text-xs text-secondary">
+            Período do indicador: {formatDate(safraSelecionada.dataInicio)} a {formatDate(safraSelecionada.dataFim)}
+          </p>
+        )}
       </div>
     </Modal>
   );
