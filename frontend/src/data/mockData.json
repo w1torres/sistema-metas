@@ -114,6 +114,31 @@
     { "id": "dept-005", "nome": "FINANCEIRO", "descricao": "Controladoria e contabilidade" }
   ],
 
+  "trilhas": [
+    {
+      "id": "trilha-1",
+      "nome": "Trilha 1",
+      "descricao": "Operacional",
+      "pilares": [
+        { "pilar": "Produtividade / resultados (Números)", "peso": 40 },
+        { "pilar": "Qualidade da produção - índices de retrabalhos", "peso": 30 },
+        { "pilar": "Eficiência e Redução de Custos", "peso": 20 },
+        { "pilar": "Desenvolvimento e Melhoria Contínua", "peso": 10 }
+      ]
+    },
+    {
+      "id": "trilha-2",
+      "nome": "Trilha 2",
+      "descricao": "Liderança",
+      "pilares": [
+        { "pilar": "Resultado da Área", "peso": 40 },
+        { "pilar": "Eficiência Operacional e Financeira", "peso": 25 },
+        { "pilar": "Gestão de Pessoas e Desenvolvimento da Equipe", "peso": 25 },
+        { "pilar": "Projetos Estratégicos e Melhoria Contínua", "peso": 10 }
+      ]
+    }
+  ],
+
   "indicators": [
     {
       "id": "ind-001",
@@ -245,6 +270,128 @@
           "tamanho_bytes": 512000,
           "criado_em": "2026-09-07T15:30:00Z"
         }
+      ]
+    },
+    {
+      "id": "ind-007",
+      "departamento_id": "dept-002",
+      "departamento": "ADMINISTRATIVO",
+      "usuario_responsavel_id": "user-002",
+      "responsavel": "Marcia Santos",
+      "nome": "GARANTIR CANHOTOS ASSINADOS",
+      "peso": 40,
+      "status": "EM_ANDAMENTO",
+      "atendimento": 0,
+      "detalhamento": "Cálculo: (Nº de Canhotos de Entrega devidamente assinados e arquivados no período ÷ Nº Total de Canhotos emitidos para o cliente no mesmo período) × 100. Unidade: %. Meta atingida = resultado ≥ 90%. Fonte de dados/critérios: canhotos de entrega assinados (via física ou digitalizada) do cliente; planilha de controle com o percentual apurado no período.",
+      "objetivo": "Garantir que no mínimo 90% dos canhotos, dos clientes estejam devidamente assinados e arquivados no período.",
+      "data_inicio": "2026-05-01",
+      "data_fim": "2027-04-30",
+      "concluido_em": null,
+      "criado_em": "2026-04-01T09:00:00Z",
+      "atualizado_em": "2026-04-01T09:00:00Z",
+      "anexos": [],
+      "funcao": "Cargos Administrativos Gerais",
+      "pilar": "Produtividade / resultados (Números)",
+      "meta": "≥90%",
+      "formaMedicao": "(Nº de Canhotos de Entrega devidamente assinados e arquivados no período ÷ Nº Total de Canhotos emitidos para o cliente no mesmo período) × 100. Unidade: %. Meta atingida = resultado ≥ 90%.",
+      "evidenciaObrigatoria": "Canhotos de entrega assinados (via física ou digitalizada) do cliente; planilha de controle com o percentual apurado no período.",
+      "tabelaAtingimento": [
+        { "faixa": "≥ 90,00%", "percentualPeso": 100 },
+        { "faixa": "85,00% a 89,99%", "percentualPeso": 90 },
+        { "faixa": "80,00% a 84,99%", "percentualPeso": 80 },
+        { "faixa": "75,00% a 79,99%", "percentualPeso": 70 },
+        { "faixa": "70,00% a 74,99%", "percentualPeso": 60 }
+      ]
+    },
+    {
+      "id": "ind-008",
+      "departamento_id": "dept-002",
+      "departamento": "ADMINISTRATIVO",
+      "usuario_responsavel_id": "user-002",
+      "responsavel": "Marcia Santos",
+      "nome": "AVALIAÇÃO DE DESEMPENHO",
+      "peso": 10,
+      "status": "EM_ANDAMENTO",
+      "atendimento": 0,
+      "detalhamento": "Metodologia: nota final da Metodologia de Avaliação de Desempenho vigente, calibrada em comitê na etapa da reunião de Gente. O atingimento do peso segue a Tabela de Atingimento (Redutor). Fonte de dados/critérios: formulário de avaliação assinado; ata do comitê de calibração.",
+      "objetivo": "Medir a performance técnica e comportamental no ciclo, com nota calibrada entre gestores.",
+      "data_inicio": "2026-05-01",
+      "data_fim": "2027-04-30",
+      "concluido_em": null,
+      "criado_em": "2026-04-01T09:05:00Z",
+      "atualizado_em": "2026-04-01T09:05:00Z",
+      "anexos": [],
+      "funcao": "Cargos Administrativos Gerais",
+      "pilar": "Desenvolvimento e Melhoria Contínua",
+      "meta": "≥85%",
+      "formaMedicao": "Nota final da Metodologia de Avaliação de Desempenho vigente, calibrada em comitê na etapa da reunião de Gente. O atingimento do peso segue a Tabela de Atingimento (Redutor).",
+      "evidenciaObrigatoria": "Formulário de avaliação assinado; ata do comitê de calibração.",
+      "tabelaAtingimento": [
+        { "faixa": "≥ 85,00%", "percentualPeso": 100 },
+        { "faixa": "77,00% a 84,99%", "percentualPeso": 90 },
+        { "faixa": "69,00% a 76,99%", "percentualPeso": 80 },
+        { "faixa": "61,00% a 68,99%", "percentualPeso": 70 },
+        { "faixa": "53,00% a 60,99%", "percentualPeso": 60 }
+      ]
+    },
+    {
+      "id": "ind-009",
+      "departamento_id": "dept-002",
+      "departamento": "ADMINISTRATIVO",
+      "usuario_responsavel_id": "user-002",
+      "responsavel": "Marcia Santos",
+      "nome": "ÍNDICE DE NOTAS FISCAIS COM ERROS/RETRABALHOS",
+      "peso": 30,
+      "status": "EM_ANDAMENTO",
+      "atendimento": 0,
+      "detalhamento": "Cálculo: número de NF's com erros que exigiram correção ou cancelamento dividido pelo número total de NF's emitidas vezes 100.",
+      "objetivo": "Reduzir erros na emissão de documentos fiscais, minimizando retrabalho e risco fiscal.",
+      "data_inicio": "2026-05-01",
+      "data_fim": "2027-04-30",
+      "concluido_em": null,
+      "criado_em": "2026-04-01T09:10:00Z",
+      "atualizado_em": "2026-04-01T09:10:00Z",
+      "anexos": [],
+      "funcao": "Cargos Administrativos Gerais",
+      "pilar": "Qualidade da produção - índices de retrabalhos",
+      "meta": "≤10%",
+      "formaMedicao": "Número de NF's com erros que exigiram correção ou cancelamento dividido pelo número total de NF's emitidas vezes 100.",
+      "evidenciaObrigatoria": "Relatório de NF's canceladas extraídos do SAP.",
+      "tabelaAtingimento": [
+        { "faixa": "≤ 10,00%", "percentualPeso": 100 },
+        { "faixa": "10,01% a 20,99%", "percentualPeso": 90 },
+        { "faixa": "21,00% a 30,99%", "percentualPeso": 80 },
+        { "faixa": "31,00% a 39,99%", "percentualPeso": 70 }
+      ]
+    },
+    {
+      "id": "ind-010",
+      "departamento_id": "dept-002",
+      "departamento": "ADMINISTRATIVO",
+      "usuario_responsavel_id": "user-003",
+      "responsavel": "João Santos",
+      "nome": "ÍNDICE DE EMISSÃO DE NOTAS FISCAIS NO PRAZO",
+      "peso": 20,
+      "status": "EM_ANDAMENTO",
+      "atendimento": 0,
+      "detalhamento": "Cálculo: notas fiscais emitidas dentro do prazo definido pela área dividido pelo total de notas fiscais emitidas no período vezes 100.",
+      "objetivo": "Garantir que as notas fiscais sejam emitidas dentro do prazo definido, evitando atraso no faturamento e no recebimento do cliente.",
+      "data_inicio": "2026-05-01",
+      "data_fim": "2027-04-30",
+      "concluido_em": null,
+      "criado_em": "2026-04-01T09:15:00Z",
+      "atualizado_em": "2026-04-01T09:15:00Z",
+      "anexos": [],
+      "funcao": "Cargos Administrativos Gerais",
+      "pilar": "Produtividade / resultados (Números)",
+      "meta": "≥95%",
+      "formaMedicao": "(Notas fiscais emitidas dentro do prazo definido pela área ÷ Total de notas fiscais emitidas no período) × 100.",
+      "evidenciaObrigatoria": "Relatório de NF's emitidas com data de emissão extraído do SAP.",
+      "tabelaAtingimento": [
+        { "faixa": "≥ 100% da meta", "percentualPeso": 100 },
+        { "faixa": "95% a 99,9% da meta", "percentualPeso": 90 },
+        { "faixa": "85% a 94,9% da meta", "percentualPeso": 75 },
+        { "faixa": "70% a 84,9% da meta", "percentualPeso": 50 }
       ]
     }
   ],

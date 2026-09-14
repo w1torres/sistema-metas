@@ -1,62 +1,39 @@
-import { useMemo, useState } from 'react';
-import { usePPRStore } from '../../store/pprStore';
-import CargoFaixasGroup from './CargoFaixasGroup';
-import FaixaPPRModal from './FaixaPPRModal';
-import Button from '../common/Button';
-import type { PPRFaixa } from '../../types';
+import { useTrilhaStore } from '../../store/trilhaStore';
+import MultiplosPPRTable from './MultiplosPPRTable';
+import TrilhaPilaresTable from './TrilhaPilaresTable';
 
 export default function PPRPage() {
-  const faixas = usePPRStore((s) => s.faixas);
-  const [criando, setCriando] = useState(false);
-  const [editandoCargo, setEditandoCargo] = useState<string | null>(null);
-
-  const porCargo = useMemo(() => {
-    const grupos = new Map<string, PPRFaixa[]>();
-    faixas.forEach((f) => {
-      const lista = grupos.get(f.cargo) ?? [];
-      lista.push(f);
-      grupos.set(f.cargo, lista);
-    });
-    return Array.from(grupos.entries())
-      .map(([cargo, lista]) => ({ cargo, faixas: lista.sort((a, b) => a.faixaMin - b.faixaMin) }))
-      .sort((a, b) => a.cargo.localeCompare(b.cargo));
-  }, [faixas]);
+  const trilhas = useTrilhaStore((s) => s.trilhas);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-10">
+      <section className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Tabela PPR</h1>
+          <h1 className="text-2xl font-bold text-ink">Tabelas</h1>
           <p className="text-sm text-secondary">
-            Múltiplos pagos por cargo, de acordo com o percentual do peso concluído pelo colaborador (soma do peso
-            dos indicadores concluídos, dividido pelo peso total). Clique em "Editar" para ajustar todas as faixas
-            de um cargo de uma vez.
+            Múltiplo pago por grupo de cargo, de acordo com o percentual do peso concluído pelo colaborador (soma do
+            peso dos indicadores concluídos, dividido pelo peso total). Clique em "Editar" para ajustar os valores.
           </p>
         </div>
-        <Button onClick={() => setCriando(true)}>+ Nova Faixa</Button>
-      </div>
 
-      {porCargo.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border bg-white p-8 text-center text-sm text-secondary">
-          Nenhuma faixa cadastrada ainda.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {porCargo.map((grupo) => (
-            <CargoFaixasGroup
-              key={grupo.cargo}
-              cargo={grupo.cargo}
-              faixas={grupo.faixas}
-              isEditing={editandoCargo === grupo.cargo}
-              editDisabled={editandoCargo !== null && editandoCargo !== grupo.cargo}
-              onIniciarEdicao={() => setEditandoCargo(grupo.cargo)}
-              onFinalizarEdicao={() => setEditandoCargo(null)}
-            />
+        <MultiplosPPRTable />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-ink">Pilares por Trilha</h2>
+          <p className="text-sm text-secondary">
+            Peso de cada pilar dentro da trilha de carreira do colaborador, usado como referência na composição dos
+            indicadores.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {trilhas.map((trilha) => (
+            <TrilhaPilaresTable key={trilha.id} trilha={trilha} />
           ))}
         </div>
-      )}
-
-      <FaixaPPRModal isOpen={criando} onClose={() => setCriando(false)} faixa={null} />
+      </section>
     </div>
   );
 }

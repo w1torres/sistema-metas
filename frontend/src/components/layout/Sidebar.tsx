@@ -44,7 +44,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       { label: 'Todos Indicadores', path: '/indicadores' },
       { label: 'Aprovações', path: '/aprovacoes', badge: pendentesAprovacao },
       { label: 'Relatórios', path: '/relatorios' },
-      { label: 'Tabela PPR', path: '/ppr' },
+      { label: 'Tabelas', path: '/ppr' },
     ];
   } else {
     items = [
@@ -52,7 +52,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       { label: 'Todos Indicadores', path: '/indicadores' },
       { label: 'Aprovações', path: '/aprovacoes', badge: pendentesAprovacao },
       { label: 'Relatórios', path: '/relatorios' },
-      { label: 'Tabela PPR', path: '/ppr' },
+      { label: 'Tabelas', path: '/ppr' },
       { label: 'Usuários', path: '/usuarios' },
     ];
   }

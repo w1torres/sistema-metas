@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import type { Indicador } from '../../types';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
+import IndicadorDetalhesModal from './IndicadorDetalhesModal';
 import { formatDate, formatFileSize } from '../../utils/formatters';
 import { getSafraForDate } from '../../utils/safra';
 
@@ -27,11 +29,37 @@ export default function IndicadorCard({
   const isConcluido = status === 'CONCLUIDO';
   const isPendente = status === 'AGUARDANDO_APROVACAO_GESTOR' || status === 'AGUARDANDO_APROVACAO_RH';
   const safra = getSafraForDate(indicador.data_inicio);
+  const [detalhesAbertos, setDetalhesAbertos] = useState(false);
+  const temDetalhes = Boolean(
+    indicador.pilar ||
+      indicador.meta ||
+      indicador.formaMedicao ||
+      indicador.evidenciaObrigatoria ||
+      indicador.tabelaAtingimento?.length,
+  );
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold text-ink">{indicador.nome}</h3>
+      <div
+        className={temDetalhes ? 'flex items-start justify-between gap-2 cursor-pointer' : 'flex items-start justify-between gap-2'}
+        role={temDetalhes ? 'button' : undefined}
+        tabIndex={temDetalhes ? 0 : undefined}
+        onClick={temDetalhes ? () => setDetalhesAbertos(true) : undefined}
+        onKeyDown={
+          temDetalhes
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setDetalhesAbertos(true);
+                }
+              }
+            : undefined
+        }
+        title={temDetalhes ? 'Ver mais informações do indicador' : undefined}
+      >
+        <h3 className={temDetalhes ? 'text-sm font-semibold text-ink hover:underline' : 'text-sm font-semibold text-ink'}>
+          {indicador.nome}
+        </h3>
         <Badge status={indicador.status} />
       </div>
 
@@ -113,6 +141,14 @@ export default function IndicadorCard({
           Ver Histórico
         </Button>
       </div>
+
+      {temDetalhes && (
+        <IndicadorDetalhesModal
+          isOpen={detalhesAbertos}
+          onClose={() => setDetalhesAbertos(false)}
+          indicador={indicador}
+        />
+      )}
     </div>
   );
 }

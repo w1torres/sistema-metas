@@ -1,0 +1,150 @@
+version: '3.9'
+
+services:
+  # ============================================================================
+  # PostgreSQL Database
+  # ============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: metas-postgres
+    restart: unless-stopped
+    
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: metas_db
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=pt_BR.UTF-8"
+    
+    ports:
+      - "5432:5432"
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    networks:
+      - metas-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # pgAdmin — Interface Web PostgreSQL
+  # ============================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: metas-pgadmin
+    restart: unless-stopped
+    
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@empresa.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: 10
+    
+    ports:
+      - "5050:80"
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+    
+    networks:
+      - metas-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # Redis — Cache (Opcional, para Etapa 3)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: metas-redis
+    restart: unless-stopped
+    
+    ports:
+      - "6379:6379"
+    
+    command: redis-server --appendonly yes
+    
+    volumes:
+      - redis_data:/data
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    networks:
+      - metas-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  metas-network:
+    driver: bridge
+
+# ============================================================================
+# INSTRUÇÕES
+# ============================================================================
+# 1. Iniciar containers:
+#    docker-compose up -d
+#
+# 2. Verificar status:
+#    docker-compose ps
+#
+# 3. Acessar pgAdmin:
+#    http://localhost:5050
+#    Email: admin@empresa.com
+#    Senha: admin123
+#
+# 4. Conectar ao servidor PostgreSQL no pgAdmin:
+#    Server: postgres
+#    Port: 5432
+#    Username: postgres
+#    Password: postgres123
+#
+# 5. Parar containers:
+#    docker-compose down
+#
+# 6. Ver logs:
+#    docker-compose logs -f postgres
+#
+# 7. Entrar no container PostgreSQL:
+#    docker-compose exec postgres psql -U postgres -d metas_db
+#
+# 8. Backup do banco:
+#    docker-compose exec postgres pg_dump -U postgres metas_db > backup.sql
+#
+# 9. Restaurar backup:
+#    docker-compose exec -T postgres psql -U postgres metas_db < backup.sql
+# ============================================================================

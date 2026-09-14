@@ -148,7 +148,7 @@ export default function NovoUsuarioModal({ isOpen, onClose }: NovoUsuarioModalPr
           placeholder="Ex: SUPERVISOR"
         />
         <p className="text-xs text-secondary">
-          O cargo é usado para calcular o múltiplo de PPR do colaborador (ver Tabela PPR).
+          O cargo é usado para calcular o múltiplo de PPR do colaborador (ver Tabelas).
         </p>
 
         <Select

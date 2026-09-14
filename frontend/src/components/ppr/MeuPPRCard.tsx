@@ -40,7 +40,7 @@ export default function MeuPPRCard({ cargo, indicadores }: MeuPPRCardProps) {
       )}
       {!faixa && cargo !== 'NAO_DEFINIDO' && (
         <p className="mt-2 text-xs text-secondary">
-          Nenhuma faixa de PPR cadastrada ainda para o cargo {cargo}. Fale com o RH para configurar a Tabela PPR.
+          Nenhuma faixa de PPR cadastrada ainda para o cargo {cargo}. Fale com o RH para configurar em Tabelas.
         </p>
       )}
       <p className="mt-2 text-xs text-secondary">

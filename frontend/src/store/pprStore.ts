@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { PPRFaixa } from '../types';
+import { GRUPO_COORDENADORES, GRUPO_DEMAIS, GRUPO_GERENTES, cargoParaGrupoPPR } from '../utils/ppr';
 
 interface NovaFaixaInput {
   cargo: string;
@@ -51,37 +52,29 @@ function validar(input: NovaFaixaInput, faixasExistentes: PPRFaixa[], ignorarId?
   return null;
 }
 
-const SEED_FAIXAS: PPRFaixa[] = [
-  { id: 'ppr-seed-01', cargo: 'ASSISTENTE', faixaMin: 0, faixaMax: 49, multiplo: 0 },
-  { id: 'ppr-seed-02', cargo: 'ASSISTENTE', faixaMin: 50, faixaMax: 69, multiplo: 0.5 },
-  { id: 'ppr-seed-03', cargo: 'ASSISTENTE', faixaMin: 70, faixaMax: 89, multiplo: 1 },
-  { id: 'ppr-seed-04', cargo: 'ASSISTENTE', faixaMin: 90, faixaMax: 999, multiplo: 1.5 },
-
-  { id: 'ppr-seed-05', cargo: 'ANALISTA', faixaMin: 0, faixaMax: 49, multiplo: 0 },
-  { id: 'ppr-seed-06', cargo: 'ANALISTA', faixaMin: 50, faixaMax: 69, multiplo: 0.75 },
-  { id: 'ppr-seed-07', cargo: 'ANALISTA', faixaMin: 70, faixaMax: 89, multiplo: 1.25 },
-  { id: 'ppr-seed-08', cargo: 'ANALISTA', faixaMin: 90, faixaMax: 999, multiplo: 1.75 },
-
-  { id: 'ppr-seed-09', cargo: 'ESPECIALISTA', faixaMin: 0, faixaMax: 49, multiplo: 0 },
-  { id: 'ppr-seed-10', cargo: 'ESPECIALISTA', faixaMin: 50, faixaMax: 69, multiplo: 1 },
-  { id: 'ppr-seed-11', cargo: 'ESPECIALISTA', faixaMin: 70, faixaMax: 89, multiplo: 1.75 },
-  { id: 'ppr-seed-12', cargo: 'ESPECIALISTA', faixaMin: 90, faixaMax: 999, multiplo: 2.5 },
-
-  { id: 'ppr-seed-13', cargo: 'COORDENADOR', faixaMin: 0, faixaMax: 49, multiplo: 0 },
-  { id: 'ppr-seed-14', cargo: 'COORDENADOR', faixaMin: 50, faixaMax: 69, multiplo: 1 },
-  { id: 'ppr-seed-15', cargo: 'COORDENADOR', faixaMin: 70, faixaMax: 89, multiplo: 1.75 },
-  { id: 'ppr-seed-16', cargo: 'COORDENADOR', faixaMin: 90, faixaMax: 999, multiplo: 2.5 },
-
-  { id: 'ppr-seed-17', cargo: 'GERENTE', faixaMin: 0, faixaMax: 49, multiplo: 0 },
-  { id: 'ppr-seed-18', cargo: 'GERENTE', faixaMin: 50, faixaMax: 69, multiplo: 1.25 },
-  { id: 'ppr-seed-19', cargo: 'GERENTE', faixaMin: 70, faixaMax: 89, multiplo: 2 },
-  { id: 'ppr-seed-20', cargo: 'GERENTE', faixaMin: 90, faixaMax: 999, multiplo: 3 },
-
-  { id: 'ppr-seed-21', cargo: 'DIRETORIA', faixaMin: 0, faixaMax: 49, multiplo: 0 },
-  { id: 'ppr-seed-22', cargo: 'DIRETORIA', faixaMin: 50, faixaMax: 69, multiplo: 1.5 },
-  { id: 'ppr-seed-23', cargo: 'DIRETORIA', faixaMin: 70, faixaMax: 89, multiplo: 2.5 },
-  { id: 'ppr-seed-24', cargo: 'DIRETORIA', faixaMin: 90, faixaMax: 999, multiplo: 4 },
+// Bandas comuns às 3 colunas da Tabela de Múltiplos de PPR — cada cargo (ver
+// cargoParaGrupoPPR) cai em um dos 3 grupos abaixo, e todos os grupos usam as
+// mesmas 8 faixas de atingimento, só o múltiplo pago varia por grupo.
+const BANDAS_MULTIPLO: { faixaMin: number; faixaMax: number; multiplos: Record<string, number> }[] = [
+  { faixaMin: 95, faixaMax: 999, multiplos: { [GRUPO_GERENTES]: 3, [GRUPO_COORDENADORES]: 2.5, [GRUPO_DEMAIS]: 2 } },
+  { faixaMin: 92.5, faixaMax: 94.99, multiplos: { [GRUPO_GERENTES]: 2.75, [GRUPO_COORDENADORES]: 2.25, [GRUPO_DEMAIS]: 1.75 } },
+  { faixaMin: 90, faixaMax: 92.49, multiplos: { [GRUPO_GERENTES]: 2.5, [GRUPO_COORDENADORES]: 2, [GRUPO_DEMAIS]: 1.5 } },
+  { faixaMin: 85, faixaMax: 89.99, multiplos: { [GRUPO_GERENTES]: 2.25, [GRUPO_COORDENADORES]: 1.75, [GRUPO_DEMAIS]: 1.25 } },
+  { faixaMin: 80, faixaMax: 84.99, multiplos: { [GRUPO_GERENTES]: 2, [GRUPO_COORDENADORES]: 1.5, [GRUPO_DEMAIS]: 1 } },
+  { faixaMin: 75, faixaMax: 79.99, multiplos: { [GRUPO_GERENTES]: 1.75, [GRUPO_COORDENADORES]: 1.25, [GRUPO_DEMAIS]: 0.75 } },
+  { faixaMin: 70, faixaMax: 74.99, multiplos: { [GRUPO_GERENTES]: 1.5, [GRUPO_COORDENADORES]: 1, [GRUPO_DEMAIS]: 0.5 } },
+  { faixaMin: 0, faixaMax: 69.99, multiplos: { [GRUPO_GERENTES]: 0, [GRUPO_COORDENADORES]: 0, [GRUPO_DEMAIS]: 0 } },
 ];
+
+const SEED_FAIXAS: PPRFaixa[] = BANDAS_MULTIPLO.flatMap((banda, idx) =>
+  Object.entries(banda.multiplos).map(([cargo, multiplo]) => ({
+    id: `ppr-seed-${idx}-${cargo.replace(/\s+/g, '-')}`,
+    cargo,
+    faixaMin: banda.faixaMin,
+    faixaMax: banda.faixaMax,
+    multiplo,
+  })),
+);
 
 export const usePPRStore = create<PPRState>()(
   persist(
@@ -143,9 +136,9 @@ export const usePPRStore = create<PPRState>()(
       },
 
       faixaPara: (cargo, percentual) => {
-        const cargoNorm = cargo.trim().toUpperCase();
+        const grupo = cargoParaGrupoPPR(cargo);
         const faixasCargo = get()
-          .faixas.filter((f) => f.cargo === cargoNorm)
+          .faixas.filter((f) => f.cargo === grupo)
           .sort((a, b) => a.faixaMin - b.faixaMin);
         if (faixasCargo.length === 0) return undefined;
 
@@ -156,6 +149,9 @@ export const usePPRStore = create<PPRState>()(
         return percentual > ultima.faixaMax ? ultima : undefined;
       },
     }),
-    { name: 'metas-ppr' },
+    // v2: a Tabela de Múltiplos passou de "uma faixa por cargo individual" para
+    // "3 grupos de cargos" (ver BANDAS_MULTIPLO) — nome novo para não herdar o
+    // formato antigo de quem já tinha o app aberto (persistido no localStorage).
+    { name: 'metas-ppr-v2' },
   ),
 );

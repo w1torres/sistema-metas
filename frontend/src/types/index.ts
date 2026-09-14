@@ -48,6 +48,11 @@ export interface Attachment {
   criado_em: string;
 }
 
+export interface FaixaAtingimento {
+  faixa: string;
+  percentualPeso: number;
+}
+
 export interface Indicador {
   id: string;
   departamento_id: string;
@@ -66,6 +71,14 @@ export interface Indicador {
   criado_em: string;
   atualizado_em: string;
   anexos: Attachment[];
+  // Detalhamento adicional do catálogo de indicadores (planilha de PPR por função/pilar).
+  // Opcionais porque indicadores mais antigos do mock não têm esse detalhamento.
+  funcao?: string;
+  pilar?: string;
+  meta?: string;
+  formaMedicao?: string;
+  evidenciaObrigatoria?: string;
+  tabelaAtingimento?: FaixaAtingimento[];
 }
 
 export interface IndicadorUpdate {
@@ -93,4 +106,16 @@ export interface PPRFaixa {
   faixaMin: number;
   faixaMax: number;
   multiplo: number;
+}
+
+export interface PilarPeso {
+  pilar: string;
+  peso: number;
+}
+
+export interface Trilha {
+  id: string;
+  nome: string;
+  descricao: string;
+  pilares: PilarPeso[];
 }
