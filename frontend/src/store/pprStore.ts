@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PPRFaixa } from '../types';
-import { GRUPO_COORDENADORES, GRUPO_DEMAIS, GRUPO_GERENTES, cargoParaGrupoPPR } from '../utils/ppr';
+import type { PPRFaixa, Role } from '../types';
+import { GRUPO_COORDENADORES, GRUPO_DEMAIS, GRUPO_GERENTES, roleParaGrupoPPR } from '../utils/ppr';
 
 interface NovaFaixaInput {
   cargo: string;
@@ -21,7 +21,7 @@ interface PPRState {
   addFaixa: (input: NovaFaixaInput) => { ok: true } | { ok: false; error: string };
   updateFaixa: (id: string, input: NovaFaixaInput) => { ok: true } | { ok: false; error: string };
   deleteFaixa: (id: string) => void;
-  faixaPara: (cargo: string, percentual: number) => PPRFaixa | undefined;
+  faixaPara: (role: Role, percentual: number) => PPRFaixa | undefined;
   // Substitui de uma vez todas as faixas de um cargo — usado pela edição em lote da
   // Tabela PPR, para evitar falsos positivos de sobreposição ao salvar várias faixas
   // editadas ao mesmo tempo (validar sequencialmente contra o estado antigo gera
@@ -52,9 +52,10 @@ function validar(input: NovaFaixaInput, faixasExistentes: PPRFaixa[], ignorarId?
   return null;
 }
 
-// Bandas comuns às 3 colunas da Tabela de Múltiplos de PPR — cada cargo (ver
-// cargoParaGrupoPPR) cai em um dos 3 grupos abaixo, e todos os grupos usam as
-// mesmas 8 faixas de atingimento, só o múltiplo pago varia por grupo.
+// Bandas comuns às 3 colunas da Tabela de Múltiplos de PPR — cada usuário (ver
+// roleParaGrupoPPR) cai em um dos 3 grupos abaixo pelo seu Papel/Perfil, e
+// todos os grupos usam as mesmas 8 faixas de atingimento, só o múltiplo pago
+// varia por grupo.
 const BANDAS_MULTIPLO: { faixaMin: number; faixaMax: number; multiplos: Record<string, number> }[] = [
   { faixaMin: 95, faixaMax: 999, multiplos: { [GRUPO_GERENTES]: 3, [GRUPO_COORDENADORES]: 2.5, [GRUPO_DEMAIS]: 2 } },
   { faixaMin: 92.5, faixaMax: 94.99, multiplos: { [GRUPO_GERENTES]: 2.75, [GRUPO_COORDENADORES]: 2.25, [GRUPO_DEMAIS]: 1.75 } },
@@ -135,8 +136,9 @@ export const usePPRStore = create<PPRState>()(
         return { ok: true };
       },
 
-      faixaPara: (cargo, percentual) => {
-        const grupo = cargoParaGrupoPPR(cargo);
+      faixaPara: (role, percentual) => {
+        const grupo = roleParaGrupoPPR(role);
+        if (!grupo) return undefined;
         const faixasCargo = get()
           .faixas.filter((f) => f.cargo === grupo)
           .sort((a, b) => a.faixaMin - b.faixaMin);

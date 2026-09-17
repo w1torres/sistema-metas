@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import SummaryCard from './SummaryCard';
 import MeuPPRCard from '../ppr/MeuPPRCard';
+import EvolucaoIndicadoresChart from '../charts/EvolucaoIndicadoresChart';
 import IndicadorCard from '../indicators/IndicadorCard';
 import AnexarDocumentoModal from '../indicators/AnexarDocumentoModal';
 import HistoricoModal from '../indicators/HistoricoModal';
@@ -11,6 +12,8 @@ import SolicitarConclusaoModal from '../indicators/SolicitarConclusaoModal';
 import Button from '../common/Button';
 import { Input, Select } from '../common/Input';
 import { getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
+import { calcularPercentualPonderado } from '../../utils/ppr';
+import { formatPercent } from '../../utils/formatters';
 import clsx from 'clsx';
 
 type FiltroStatus = 'TODOS' | 'EM_ANDAMENTO' | 'AGUARDANDO' | 'CONCLUIDO';
@@ -31,6 +34,9 @@ export default function DashboardColaborador() {
     removeAnexo,
     historyFor,
     notaConclusaoAtual,
+    observacaoRH,
+    percentualGestorAtingido,
+    solicitarMes,
   } = useIndicatorStore();
 
   const [filtro, setFiltro] = useState<FiltroStatus>('TODOS');
@@ -64,6 +70,7 @@ export default function DashboardColaborador() {
   const concluidos = meusIndicadores.filter((i) => i.status === 'CONCLUIDO').length;
   const aguardando = meusIndicadores.filter((i) => STATUS_PENDENTES.includes(i.status)).length;
   const emAndamento = total - concluidos - aguardando;
+  const percentualAtingido = calcularPercentualPonderado(meusIndicadores);
 
   const indicadorAnexar = indicators.find((i) => i.id === anexarId) ?? null;
   const indicadorHistorico = indicators.find((i) => i.id === historicoId) ?? null;
@@ -78,14 +85,17 @@ export default function DashboardColaborador() {
         <p className="text-sm text-secondary">Bem-vindo, {user.nome}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <SummaryCard label="Percentual Atingido" value={formatPercent(percentualAtingido)} accentClassName="text-primary" />
         <SummaryCard label="Total de Indicadores" value={total} />
         <SummaryCard label="Concluídos" value={concluidos} accentClassName="text-success" />
         <SummaryCard label="Aguardando Aprovação" value={aguardando} accentClassName="text-primary" />
         <SummaryCard label="Em Andamento" value={emAndamento} accentClassName="text-warning" />
       </div>
 
-      <MeuPPRCard cargo={user.cargo} indicadores={meusIndicadores} />
+      <MeuPPRCard cargo={user.cargo} role={user.role} indicadores={meusIndicadores} />
+
+      <EvolucaoIndicadoresChart indicadores={meusIndicadores} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
@@ -136,6 +146,12 @@ export default function DashboardColaborador() {
               key={indicador.id}
               indicador={indicador}
               notaConclusao={notaConclusaoAtual(indicador.id)}
+              observacaoAprovacao={observacaoRH(indicador.id)}
+              percentualGestorAtingido={percentualGestorAtingido(indicador.id)}
+              onSolicitarMes={(mes, nota) => {
+                solicitarMes(indicador.id, mes, user.id, user.nome, nota);
+                toast.success(`Mês enviado para avaliação do gestor.`);
+              }}
               onAbrirSolicitacao={() => setSolicitandoId(indicador.id)}
               onCancelarSolicitacao={() => {
                 cancelarSolicitacao(indicador.id, user.id, user.nome);

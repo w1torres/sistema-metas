@@ -10,7 +10,7 @@ import { calcularMediaPorColaborador, calcularPercentualPonderado } from '../../
 import { getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
 import clsx from 'clsx';
 import { downloadCSV, toCSV } from '../../utils/csv';
-import type { Indicador, PPRFaixa, User } from '../../types';
+import type { Indicador, PPRFaixa, Role, User } from '../../types';
 
 const SAFRAS = listSafras();
 
@@ -48,7 +48,7 @@ function summarizeByDepartamento(indicators: Indicador[]): DepartamentoResumo[] 
 function summarizeByColaborador(
   indicators: Indicador[],
   users: User[],
-  faixaPara: (cargo: string, percentual: number) => PPRFaixa | undefined,
+  faixaPara: (role: Role, percentual: number) => PPRFaixa | undefined,
 ): ColaboradorResumo[] {
   const ids = Array.from(new Set(indicators.map((i) => i.usuario_responsavel_id)));
   return ids
@@ -65,7 +65,7 @@ function summarizeByColaborador(
         total: items.length,
         concluidos,
         percentualPonderado: Math.round(percentualPonderado),
-        faixa: faixaPara(cargo, percentualPonderado),
+        faixa: user ? faixaPara(user.role, percentualPonderado) : undefined,
       };
     })
     .sort((a, b) => b.percentualPonderado - a.percentualPonderado);

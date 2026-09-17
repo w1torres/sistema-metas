@@ -6,7 +6,7 @@ import { useUserStore } from '../../store/userStore';
 import { useDepartmentStore } from '../../store/departmentStore';
 import { useCargoStore } from '../../store/cargoStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
-import { csvRowsToObjects, downloadCSV, parseCSV, toCSV } from '../../utils/csv';
+import { downloadXLSX, readSpreadsheetFile } from '../../utils/xlsx';
 import { IMPORT_TEMPLATE_HEADERS } from '../../utils/constants';
 import { validateNome, validatePeso } from '../../utils/validators';
 import { getSafraAtual, parseSafraLabel } from '../../utils/safra';
@@ -48,28 +48,26 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
 
   function handleBaixarModelo() {
     const exemplo = [
-      'Ana Costa',
-      'ana@empresa.com',
-      'TECNOLOGIA',
-      'ESPECIALISTA',
-      'REDUZIR TEMPO DE RESPOSTA DE CHAMADOS',
+      'Fulano de Tal',
+      'fulano.tal@empresa.com',
+      'DEPARTAMENTO EXEMPLO',
+      'CARGO EXEMPLO',
+      'NOME DO INDICADOR EXEMPLO',
       '25',
-      'Reduzir SLA médio de atendimento de TI',
+      'Descreva aqui o objetivo do indicador',
       getSafraAtual().label.replace('Safra ', ''),
     ];
-    downloadCSV('modelo_importacao_indicadores.csv', toCSV(IMPORT_TEMPLATE_HEADERS, [exemplo]));
+    downloadXLSX('modelo_importacao_indicadores.xlsx', IMPORT_TEMPLATE_HEADERS, [exemplo]);
   }
 
-  function handleFile(file: File) {
+  async function handleFile(file: File) {
     if (!currentUser) return;
     setFileName(file.name);
     setProcessing(true);
     setResult(null);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = String(reader.result ?? '');
-      const rows = csvRowsToObjects(parseCSV(text));
+    try {
+      const rows = await readSpreadsheetFile(file);
 
       const erros: ImportError[] = [];
       let indicadoresCriados = 0;
@@ -141,21 +139,23 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
       const colaboradoresCriados = useUserStore.getState().users.filter((u) => !colaboradoresAntes.has(u.id)).length;
 
       setResult({ indicadoresCriados, colaboradoresCriados, erros });
+    } catch (err) {
+      setResult({ indicadoresCriados: 0, colaboradoresCriados: 0, erros: [{ linha: 0, motivo: err instanceof Error ? err.message : 'Falha ao ler o arquivo' }] });
+    } finally {
       setProcessing(false);
-    };
-    reader.readAsText(file);
+    }
   }
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Importar Planilha de Indicadores" maxWidthClassName="max-w-xl">
       <div className="flex flex-col gap-4">
         <p className="text-sm text-secondary">
-          Envie um arquivo CSV com uma linha por indicador. Colaboradores, departamentos e cargos citados que ainda
-          não existirem no sistema serão criados automaticamente (como Colaborador ativo). A coluna{' '}
-          <code>cargo</code> é opcional — se vazia, o colaborador é criado sem cargo definido e não recebe múltiplo
-          de PPR até alguém corrigir isso em Usuários. A coluna <code>safra</code> define o período do indicador (ex.:{' '}
-          <code>25/26</code> vira 01/05/2025–30/04/2026) — todo indicador segue exatamente o período da safra
-          informada.
+          Envie um arquivo Excel (.xlsx) ou CSV com uma linha por indicador. Colaboradores, departamentos e cargos
+          citados que ainda não existirem no sistema serão criados automaticamente (como Colaborador ativo). A
+          coluna <code>cargo</code> é opcional — se vazia, o colaborador é criado sem cargo definido e não recebe
+          múltiplo de PPR até alguém corrigir isso em Usuários. A coluna <code>safra</code> define o período do
+          indicador (ex.: <code>25/26</code> vira 01/05/2025–30/04/2026) — todo indicador segue exatamente o período
+          da safra informada.
         </p>
 
         <div className="rounded-md border border-border bg-gray-50 p-3 text-xs text-secondary">
@@ -164,12 +164,12 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
         </div>
 
         <Button variant="secondary" size="sm" onClick={handleBaixarModelo} className="self-start">
-          Baixar modelo CSV
+          Baixar modelo XLSX
         </Button>
 
         <div className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-6 text-center">
           <p className="text-sm text-secondary">
-            {fileName ? `Arquivo selecionado: ${fileName}` : 'Selecione um arquivo .csv'}
+            {fileName ? `Arquivo selecionado: ${fileName}` : 'Selecione um arquivo .xlsx ou .csv'}
           </p>
           <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()} loading={processing}>
             Selecionar Arquivo
@@ -177,7 +177,7 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
           <input
             ref={fileRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];

@@ -8,6 +8,7 @@ import { Input } from '../common/Input';
 import Button from '../common/Button';
 import { validateEmail } from '../../utils/validators';
 import { ROLE_LABELS } from '../../utils/constants';
+import logo from '../../assets/favicon.png';
 import type { User } from '../../types';
 
 export default function LoginScreen() {
@@ -57,6 +58,7 @@ export default function LoginScreen() {
     <div className="flex min-h-screen items-center justify-center bg-surface px-4">
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg">
         <div className="mb-6 text-center">
+          <img src={logo} alt="Logo" className="mx-auto mb-3 h-24 w-24" />
           <h1 className="text-2xl font-bold text-ink">Sistema de Metas</h1>
           <p className="mt-1 text-sm text-secondary">Acompanhamento de Indicadores e Metas</p>
         </div>

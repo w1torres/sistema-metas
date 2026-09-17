@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
+import { COLABORADOR_TIER_ROLES, departamentosDoGestor } from '../../utils/constants';
 
 interface NavItem {
   label: string;
@@ -23,22 +24,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   if (!user) return null;
 
   let pendentesAprovacao = 0;
-  if (user.role === 'GERENTE_DEPARTAMENTO') {
+  if (user.role === 'GERENTES') {
+    const meusDepartamentos = departamentosDoGestor(user);
     pendentesAprovacao = indicators.filter(
-      (i) => i.status === 'AGUARDANDO_APROVACAO_GESTOR' && i.departamento_id === user.departamento_id,
+      (i) => i.status === 'AGUARDANDO_APROVACAO_GESTOR' && meusDepartamentos.includes(i.departamento_id),
     ).length;
-  } else if (user.role === 'GERENTE_RH' || user.role === 'ADMIN') {
+  } else if (user.role === 'MASTER' || user.role === 'ADMIN') {
     pendentesAprovacao = indicators.filter(
       (i) => i.status === 'AGUARDANDO_APROVACAO_GESTOR' || i.status === 'AGUARDANDO_APROVACAO_RH',
     ).length;
   }
 
   let items: NavItem[];
-  if (user.role === 'COLABORADOR') {
+  if (COLABORADOR_TIER_ROLES.includes(user.role)) {
     items = [{ label: 'Meus Indicadores', path: '/dashboard' }];
-  } else if (user.role === 'GERENTE_DEPARTAMENTO') {
-    items = [{ label: 'Aprovações', path: '/aprovacoes', badge: pendentesAprovacao }];
-  } else if (user.role === 'GERENTE_RH') {
+  } else if (user.role === 'GERENTES') {
+    items = [
+      { label: 'Meus Indicadores', path: '/dashboard' },
+      { label: 'Aprovações', path: '/aprovacoes', badge: pendentesAprovacao },
+    ];
+  } else if (user.role === 'MASTER') {
     items = [
       { label: 'Visão Geral', path: '/dashboard' },
       { label: 'Todos Indicadores', path: '/indicadores' },
@@ -69,7 +74,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
       <nav
         className={clsx(
-          'fixed inset-y-0 left-0 z-40 w-56 shrink-0 border-r border-border bg-white pt-16 transition-transform lg:static lg:z-0 lg:translate-x-0 lg:pt-0',
+          'fixed inset-y-0 left-0 z-40 w-56 shrink-0 border-r border-border bg-white pt-20 transition-transform lg:static lg:z-0 lg:translate-x-0 lg:pt-0',
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
         aria-label="Navegação principal"

@@ -10,14 +10,16 @@ import UsuariosPage from './components/admin/UsuariosPage';
 import PPRPage from './components/ppr/PPRPage';
 import AprovacoesPage from './components/aprovacoes/AprovacoesPage';
 import { useAuthStore } from './store/authStore';
-import { APPROVER_ROLES, MANAGER_ROLES } from './utils/constants';
+import { APPROVER_ROLES, COLABORADOR_TIER_ROLES, MANAGER_ROLES } from './utils/constants';
 
 function Dashboard() {
   const user = useAuthStore((s) => s.user);
   if (!user) return null;
-  if (user.role === 'COLABORADOR') return <DashboardColaborador />;
-  // Gerente de Departamento não tem visão geral da empresa — vai direto para as aprovações do seu departamento
-  if (user.role === 'GERENTE_DEPARTAMENTO') return <Navigate to="/aprovacoes" replace />;
+  // Gerente também pode ser responsável por indicadores próprios (ex.: metas
+  // de gerente na trilha de liderança) — reaproveita a mesma visão "Meus
+  // Indicadores" do colaborador. A fila de aprovação do departamento fica em
+  // /aprovacoes, não aqui.
+  if (COLABORADOR_TIER_ROLES.includes(user.role) || user.role === 'GERENTES') return <DashboardColaborador />;
   return <DashboardOverview />;
 }
 

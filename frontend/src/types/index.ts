@@ -1,4 +1,12 @@
-export type Role = 'ADMIN' | 'GERENTE_RH' | 'GERENTE_DEPARTAMENTO' | 'COLABORADOR';
+// Papel/Perfil: um único campo que define, ao mesmo tempo, o grupo de PPR
+// (ver utils/ppr.ts) e a permissão de acesso (RBAC) — não existe mais um
+// campo "Cargo" separado que influencie PPR ou permissões.
+// GERENTES: aprova 1º nível do próprio departamento (era GERENTE_DEPARTAMENTO).
+// COORDENADORES_SUPERVISORES / COLABORADOR: mesmo nível de acesso (sem
+// aprovação), só o múltiplo de PPR muda entre os dois.
+// ADMIN: administração do sistema/usuários. MASTER: Gerente de RH + Controller
+// — vê e aprova em todos os departamentos (era GERENTE_RH).
+export type Role = 'GERENTES' | 'COORDENADORES_SUPERVISORES' | 'COLABORADOR' | 'ADMIN' | 'MASTER';
 
 export type IndicadorStatus =
   | 'EM_ANDAMENTO'
@@ -30,6 +38,16 @@ export interface User {
   role: Role;
   avatar?: string;
   ativo: boolean;
+  dataNascimento?: string;
+  dataAdmissao?: string;
+  filial?: string;
+  enderecoCompleto?: string;
+  telefone?: string;
+  celular?: string;
+  // Só relevante para role GERENTES: departamentos além do `departamento_id`
+  // (o "principal") que este gestor também aprova — ex.: gerente
+  // administrativo que também responde por Compras, Estoque e Faturamento.
+  departamentosAdicionais?: string[];
 }
 
 export interface Departamento {
@@ -51,6 +69,23 @@ export interface Attachment {
 export interface FaixaAtingimento {
   faixa: string;
   percentualPeso: number;
+}
+
+// Indicador ANUAL: um único ciclo colaborador -> gestor -> RH para o
+// período inteiro (fluxo já existente). Indicador MENSAL: um registro por
+// mês, só colaborador -> gestor (sem RH por mês) — o RH/controller só entra
+// para uma validação final única, depois que o período termina.
+export type PeriodicidadeIndicador = 'ANUAL' | 'MENSAL';
+
+export type StatusRegistroMensal = 'PENDENTE' | 'AGUARDANDO_GESTOR' | 'APROVADO';
+
+export interface RegistroMensal {
+  mes: string; // "YYYY-MM"
+  status: StatusRegistroMensal;
+  nota?: string | null;
+  observacaoGestor?: string | null;
+  enviado_em?: string | null;
+  aprovado_em?: string | null;
 }
 
 export interface Indicador {
@@ -79,6 +114,13 @@ export interface Indicador {
   formaMedicao?: string;
   evidenciaObrigatoria?: string;
   tabelaAtingimento?: FaixaAtingimento[];
+  // Percentual do peso escolhido pelo gestor do departamento na 1ª aprovação,
+  // a partir da Tabela de Atingimento (quando existe) — fica pendente até o
+  // RH dar a avaliação final, momento em que vira o `atendimento` definitivo.
+  percentualAtingido?: number | null;
+  // Ausente == 'ANUAL' (indicadores existentes continuam no fluxo de sempre).
+  periodicidade?: PeriodicidadeIndicador;
+  registrosMensais?: RegistroMensal[];
 }
 
 export interface IndicadorUpdate {
@@ -91,6 +133,13 @@ export interface IndicadorUpdate {
   valor_anterior: unknown;
   valor_novo: unknown;
   motivo: string | null;
+  // Observação livre de quem aprovou, dirigida a quem vai receber o
+  // indicador em seguida (gestor -> RH, RH -> colaborador) — distinta do
+  // `motivo` (texto fixo do sistema, ex: "Aprovado pelo gestor do departamento").
+  observacao?: string | null;
+  // Presente só no evento APROVACAO_GESTOR de indicadores com Tabela de
+  // Atingimento: o % do peso que o gestor marcou como resultado atingido.
+  percentualAtingido?: number | null;
   criado_em: string;
 }
 

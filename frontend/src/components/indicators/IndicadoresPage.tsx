@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import { useDepartmentStore } from '../../store/departmentStore';
 import ColaboradorIndicadoresGroup from './ColaboradorIndicadoresGroup';
@@ -26,10 +27,12 @@ export default function IndicadoresPage() {
   const { indicators, historyFor } = useIndicatorStore();
   const departments = useDepartmentStore((s) => s.departments);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [departamento, setDepartamento] = useState('');
   const [status, setStatus] = useState('');
   const [safraId, setSafraId] = useState(getSafraAtual().id);
-  const [busca, setBusca] = useState('');
+  const [busca, setBusca] = useState(searchParams.get('busca') ?? '');
   const [pagina, setPagina] = useState(1);
 
   const [editando, setEditando] = useState<Indicador | null>(null);
@@ -76,6 +79,11 @@ export default function IndicadoresPage() {
   const totalPaginas = Math.max(1, Math.ceil(grupos.length / PAGE_SIZE));
   const paginaAtual = Math.min(pagina, totalPaginas);
   const gruposPaginados = grupos.slice((paginaAtual - 1) * PAGE_SIZE, paginaAtual * PAGE_SIZE);
+
+  useEffect(() => {
+    if (searchParams.get('busca')) setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function updateFiltro(setter: (value: string) => void, value: string) {
     setter(value);

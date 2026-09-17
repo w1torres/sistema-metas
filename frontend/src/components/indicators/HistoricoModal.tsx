@@ -31,6 +31,11 @@ export default function HistoricoModal({ isOpen, onClose, indicadorNome, eventos
             <li key={evento.id} className="border-l-2 border-primary/30 pl-4">
               <p className="text-sm font-medium text-ink">{TIPO_LABELS[evento.tipo_alteracao]}</p>
               {evento.motivo && <p className="text-sm text-secondary">{evento.motivo}</p>}
+              {evento.percentualAtingido != null && (
+                <p className="text-xs font-medium text-primary">
+                  Percentual atingido marcado: {evento.percentualAtingido}%
+                </p>
+              )}
               {evento.campo_alterado && (
                 <p className="text-xs text-secondary">Campo: {evento.campo_alterado}</p>
               )}

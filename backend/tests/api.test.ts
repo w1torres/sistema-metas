@@ -1,0 +1,182 @@
+import request from 'supertest';
+import { app } from '../src/app.js';
+import { db } from '../src/db/knex.js';
+
+interface Fixtures {
+  deptAdmId: string;
+  deptTiId: string;
+  masterEmail: string;
+  gestorAdmEmail: string;
+  gestorTiEmail: string;
+  colabAdmEmail: string;
+  indicadorId: string;
+}
+
+let fx: Fixtures;
+
+async function login(email: string): Promise<{ token: string; role: string }> {
+  const res = await request(app).post('/api/auth/login').send({ email });
+  return { token: res.body.data.token, role: res.body.data.user.role };
+}
+
+beforeAll(async () => {
+  await db.migrate.latest();
+
+  // Limpa em ordem segura de FK antes de inserir os fixtures deste teste.
+  await db('indicador_updates').del();
+  await db('attachments').del();
+  await db('indicadores').del();
+  await db('ppr_faixas').del();
+  await db('users').del();
+  await db('cargos').del();
+  await db('trilha_pilares').del();
+  await db('trilhas').del();
+  await db('departamentos').del();
+
+  const [deptAdm] = await db('departamentos').insert({ nome: 'ADMINISTRATIVO', descricao: 'Teste' }).returning('id');
+  const [deptTi] = await db('departamentos').insert({ nome: 'TECNOLOGIA', descricao: 'Teste' }).returning('id');
+
+  const [master] = await db('users')
+    .insert({ email: 'master@teste.com', nome: 'Master Teste', departamento_id: deptAdm.id, role: 'MASTER' })
+    .returning('id');
+  const [gestorAdm] = await db('users')
+    .insert({ email: 'gestor.adm@teste.com', nome: 'Gestor Adm', departamento_id: deptAdm.id, role: 'GESTOR' })
+    .returning('id');
+  const [gestorTi] = await db('users')
+    .insert({ email: 'gestor.ti@teste.com', nome: 'Gestor TI', departamento_id: deptTi.id, role: 'GESTOR' })
+    .returning('id');
+  const [colabAdm] = await db('users')
+    .insert({
+      email: 'colab.adm@teste.com',
+      nome: 'Colaborador Adm',
+      departamento_id: deptAdm.id,
+      role: 'COLABORADOR',
+      cpf: '111.222.333-96',
+    })
+    .returning('id');
+
+  const [indicador] = await db('indicadores')
+    .insert({
+      departamento_id: deptAdm.id,
+      usuario_responsavel_id: colabAdm.id,
+      nome: 'INDICADOR DE TESTE',
+      peso: 50,
+      status: 'EM_ANDAMENTO',
+      objetivo: 'Objetivo de teste',
+      data_inicio: '2026-01-01',
+      data_fim: '2026-12-31',
+    })
+    .returning('id');
+
+  fx = {
+    deptAdmId: deptAdm.id,
+    deptTiId: deptTi.id,
+    masterEmail: 'master@teste.com',
+    gestorAdmEmail: 'gestor.adm@teste.com',
+    gestorTiEmail: 'gestor.ti@teste.com',
+    colabAdmEmail: 'colab.adm@teste.com',
+    indicadorId: indicador.id,
+  };
+  void master;
+  void gestorTi;
+});
+
+afterAll(async () => {
+  await db.destroy();
+});
+
+describe('Autenticação', () => {
+  it('faz login com e-mail cadastrado e devolve o role correto', async () => {
+    const { token, role } = await login(fx.masterEmail);
+    expect(token).toBeTruthy();
+    expect(role).toBe('MASTER');
+  });
+
+  it('rejeita e-mail não cadastrado', async () => {
+    const res = await request(app).post('/api/auth/login').send({ email: 'ninguem@teste.com' });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('Dashboard por role', () => {
+  it('GESTOR só vê o próprio departamento', async () => {
+    const { token } = await login(fx.gestorAdmEmail);
+    const res = await request(app).get('/api/dashboard/stats').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.resumo_departamento.departamento).toBe('ADMINISTRATIVO');
+    expect(res.body.data.resumo_geral).toBeUndefined();
+  });
+
+  it('MASTER vê todos os departamentos', async () => {
+    const { token } = await login(fx.masterEmail);
+    const res = await request(app).get('/api/dashboard/stats').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.resumo_geral).toBeDefined();
+    expect(res.body.data.por_departamento.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('RBAC entre departamentos', () => {
+  it('GESTOR de outro departamento não acessa indicador alheio', async () => {
+    const { token } = await login(fx.gestorTiEmail);
+    const res = await request(app).get(`/api/indicators/${fx.indicadorId}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('Fluxo de aprovação em 2 etapas', () => {
+  it('colaborador solicita -> gestor aprova -> master aprova, com observação em auditoria', async () => {
+    const colab = await login(fx.colabAdmEmail);
+    const gestor = await login(fx.gestorAdmEmail);
+    const master = await login(fx.masterEmail);
+
+    const solicitar = await request(app)
+      .patch(`/api/indicators/${fx.indicadorId}/complete`)
+      .set('Authorization', `Bearer ${colab.token}`)
+      .send({ nota: 'Concluí a tarefa' });
+    expect(solicitar.status).toBe(200);
+    expect(solicitar.body.data.status).toBe('AGUARDANDO_APROVACAO');
+
+    const aprovaGestor = await request(app)
+      .patch(`/api/indicators/${fx.indicadorId}/approve`)
+      .set('Authorization', `Bearer ${gestor.token}`)
+      .send({ aprovado: true });
+    expect(aprovaGestor.status).toBe(200);
+    expect(aprovaGestor.body.data.status).toBe('AGUARDANDO_RH');
+
+    const aprovaMaster = await request(app)
+      .patch(`/api/indicators/${fx.indicadorId}/approve`)
+      .set('Authorization', `Bearer ${master.token}`)
+      .send({ aprovado: true, observacao: 'Validado conforme critérios' });
+    expect(aprovaMaster.status).toBe(200);
+    expect(aprovaMaster.body.data.status).toBe('CONCLUIDO');
+    expect(aprovaMaster.body.data.concluido_em).toBeTruthy();
+
+    const historico = await request(app)
+      .get(`/api/indicators/${fx.indicadorId}/history`)
+      .set('Authorization', `Bearer ${master.token}`);
+    const aprovacaoFinal = historico.body.data.find((h: { tipo_alteracao: string }) => h.tipo_alteracao === 'APROVACAO_RH');
+    expect(aprovacaoFinal.observacao).toBe('Validado conforme critérios');
+  });
+});
+
+describe('Import de planilha', () => {
+  it('importa linha válida e reporta erro detalhado na linha inválida', async () => {
+    const { token } = await login(fx.gestorAdmEmail);
+    const csv = [
+      'Nome,Peso,Responsável (CPF),Objetivo,Detalhamento,Data Início,Data Fim,Pilar,Função,Meta,Forma de Medição,Evidência Obrigatória',
+      'IMPORT OK,15,111.222.333-96,Objetivo,,01/06/2026,31/12/2026,,,,,',
+      'IMPORT SEM CPF,10,999.999.999-99,Objetivo,,01/06/2026,31/12/2026,,,,,',
+    ].join('\n');
+
+    const res = await request(app)
+      .post('/api/indicators/import')
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from(csv, 'utf8'), { filename: 'import.csv', contentType: 'text/csv' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.sucesso).toBe(1);
+    expect(res.body.data.erros).toBe(1);
+    expect(res.body.data.detalhes[0].erro).toMatch(/não encontrado/);
+  });
+});

@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 import { ROLE_LABELS } from '../../utils/constants';
 import { initials } from '../../utils/formatters';
+import logo from '../../assets/favicon.png';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -19,7 +20,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   }
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-white px-4 sm:px-6">
+    <header className="flex h-20 items-center justify-between border-b border-border bg-white px-4 sm:px-6">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -29,6 +30,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         >
           ☰
         </button>
+        <img src={logo} alt="Logo" className="h-14 w-14" />
         <span className="text-lg font-bold text-primary">Sistema de Metas</span>
       </div>
 
@@ -38,7 +40,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             <p className="text-sm font-medium text-ink">{user.nome}</p>
             <p className="text-xs text-secondary">
               {ROLE_LABELS[user.role]}
-              {user.role === 'GERENTE_DEPARTAMENTO' && ` — ${user.departamento}`}
+              {user.role === 'GERENTES' && ` — ${user.departamento}`}
             </p>
           </div>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">

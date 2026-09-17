@@ -1,16 +1,46 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useUserStore } from '../../store/userStore';
 import { useAuthStore } from '../../store/authStore';
-import NovoUsuarioModal from './NovoUsuarioModal';
+import { useDepartmentStore } from '../../store/departmentStore';
+import { useCargoStore } from '../../store/cargoStore';
+import UsuarioModal from './UsuarioModal';
+import UsuarioCard from './UsuarioCard';
+import UsuarioDetalhesModal from './UsuarioDetalhesModal';
+import ImportUsuariosModal from './ImportUsuariosModal';
 import Button from '../common/Button';
-import { ROLE_LABELS } from '../../utils/constants';
+import { Input, Select } from '../common/Input';
+import type { User } from '../../types';
 
 export default function UsuariosPage() {
   const users = useUserStore((s) => s.users);
   const toggleAtivo = useUserStore((s) => s.toggleAtivo);
   const currentUser = useAuthStore((s) => s.user);
+  const departments = useDepartmentStore((s) => s.departments);
+  const cargos = useCargoStore((s) => s.cargos);
+
+  const [departamentoFiltro, setDepartamentoFiltro] = useState('');
+  const [cargoFiltro, setCargoFiltro] = useState('');
+  const [busca, setBusca] = useState('');
+
   const [criando, setCriando] = useState(false);
+  const [importando, setImportando] = useState(false);
+  const [editando, setEditando] = useState<User | null>(null);
+  const [detalhando, setDetalhando] = useState<User | null>(null);
+
+  const filtrados = useMemo(
+    () =>
+      users.filter((u) => {
+        if (departamentoFiltro && u.departamento_id !== departamentoFiltro) return false;
+        if (cargoFiltro && u.cargo !== cargoFiltro) return false;
+        if (busca) {
+          const term = busca.toLowerCase();
+          if (!u.nome.toLowerCase().includes(term) && !u.email.toLowerCase().includes(term)) return false;
+        }
+        return true;
+      }),
+    [users, departamentoFiltro, cargoFiltro, busca],
+  );
 
   function handleToggle(id: string, nome: string, ativo: boolean) {
     if (id === currentUser?.id) {
@@ -27,63 +57,66 @@ export default function UsuariosPage() {
         <div>
           <h1 className="text-2xl font-bold text-ink">Usuários</h1>
           <p className="text-sm text-secondary">
-            {users.length} usuário(s) cadastrado(s) — cadastre aqui quem poderá acessar o sistema com email
+            {filtrados.length} de {users.length} usuário(s) — cadastre aqui quem poderá acessar o sistema com email
             corporativo (login via Microsoft chega na Etapa 2).
           </p>
         </div>
-        <Button onClick={() => setCriando(true)}>+ Novo Usuário</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setCriando(true)}>+ Novo Usuário</Button>
+          <Button variant="secondary" onClick={() => setImportando(true)}>
+            Importar Planilha
+          </Button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-white shadow-sm">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-border text-xs uppercase text-secondary">
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">Email corporativo</th>
-              <th className="px-4 py-3">Departamento</th>
-              <th className="px-4 py-3">Cargo</th>
-              <th className="px-4 py-3">Papel</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="border-b border-border last:border-0">
-                <td className="px-4 py-3 font-medium text-ink">{u.nome}</td>
-                <td className="px-4 py-3 text-secondary">{u.email}</td>
-                <td className="px-4 py-3 text-secondary">{u.departamento}</td>
-                <td className="px-4 py-3 text-secondary">{u.cargo}</td>
-                <td className="px-4 py-3">
-                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                    {ROLE_LABELS[u.role]}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                      u.ativo ? 'bg-success/15 text-success' : 'bg-secondary/15 text-secondary'
-                    }`}
-                  >
-                    {u.ativo ? 'Ativo' : 'Inativo'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => handleToggle(u.id, u.nome, u.ativo)}
-                    className="text-xs font-medium text-primary hover:underline"
-                  >
-                    {u.ativo ? 'Desativar' : 'Reativar'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-white p-4 shadow-sm sm:grid-cols-3">
+        <Select
+          label="Departamento"
+          value={departamentoFiltro}
+          onChange={setDepartamentoFiltro}
+          placeholder="Todos"
+          options={departments.map((d) => ({ value: d.id, label: d.nome }))}
+        />
+        <Select
+          label="Cargo"
+          value={cargoFiltro}
+          onChange={setCargoFiltro}
+          placeholder="Todos"
+          options={cargos.map((c) => ({ value: c, label: c }))}
+        />
+        <Input label="Buscar" placeholder="Nome ou email..." value={busca} onChange={(e) => setBusca(e.target.value)} />
       </div>
 
-      <NovoUsuarioModal isOpen={criando} onClose={() => setCriando(false)} />
+      {filtrados.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border bg-white p-8 text-center text-sm text-secondary">
+          Nenhum usuário encontrado com os filtros atuais.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtrados.map((u) => (
+            <UsuarioCard key={u.id} usuario={u} onSelect={() => setDetalhando(u)} />
+          ))}
+        </div>
+      )}
+
+      <UsuarioModal isOpen={criando} onClose={() => setCriando(false)} />
+      <UsuarioModal isOpen={!!editando} usuario={editando} onClose={() => setEditando(null)} />
+      <ImportUsuariosModal isOpen={importando} onClose={() => setImportando(false)} />
+      <UsuarioDetalhesModal
+        isOpen={!!detalhando}
+        usuario={detalhando}
+        onClose={() => setDetalhando(null)}
+        podeDesativar={detalhando?.id !== currentUser?.id}
+        onEditar={() => {
+          setEditando(detalhando);
+          setDetalhando(null);
+        }}
+        onToggleAtivo={() => {
+          if (!detalhando) return;
+          handleToggle(detalhando.id, detalhando.nome, detalhando.ativo);
+          setDetalhando(null);
+        }}
+      />
     </div>
   );
 }

@@ -1,18 +1,36 @@
-import type { IndicadorStatus, Role } from '../types';
+import type { IndicadorStatus, Role, User } from '../types';
 
 export const ROLE_LABELS: Record<Role, string> = {
+  MASTER: 'Master',
   ADMIN: 'Administrador',
-  GERENTE_RH: 'Gerente de RH',
-  GERENTE_DEPARTAMENTO: 'Gerente de Departamento',
+  GERENTES: 'Gerente',
+  COORDENADORES_SUPERVISORES: 'Coordenador/Supervisor',
   COLABORADOR: 'Colaborador',
 };
 
-export const ROLE_OPTIONS: Role[] = ['ADMIN', 'GERENTE_RH', 'GERENTE_DEPARTAMENTO', 'COLABORADOR'];
+// Ordem = hierarquia, do topo (Master) à base (Colaborador) — mesma ordem
+// usada no seletor de cadastro.
+export const ROLE_OPTIONS: Role[] = ['MASTER', 'ADMIN', 'GERENTES', 'COORDENADORES_SUPERVISORES', 'COLABORADOR'];
 
-export const MANAGER_ROLES: Role[] = ['ADMIN', 'GERENTE_RH'];
+export const MANAGER_ROLES: Role[] = ['ADMIN', 'MASTER'];
 
 // Quem pode aprovar/rejeitar em algum estágio do fluxo de conclusão (ver AprovacoesPage)
-export const APPROVER_ROLES: Role[] = ['ADMIN', 'GERENTE_RH', 'GERENTE_DEPARTAMENTO'];
+export const APPROVER_ROLES: Role[] = ['ADMIN', 'MASTER', 'GERENTES'];
+
+// Coordenadores/Supervisores têm o mesmo nível de acesso que Colaborador —
+// só o múltiplo de PPR muda entre os dois (ver utils/ppr.ts). Usar esta
+// lista em qualquer verificação de RBAC/navegação que hoje checaria
+// só 'COLABORADOR'.
+export const COLABORADOR_TIER_ROLES: Role[] = ['COLABORADOR', 'COORDENADORES_SUPERVISORES'];
+
+// Departamentos que um GERENTES aprova: o principal (departamento_id) mais
+// quaisquer adicionais (ex.: gerente administrativo que também responde por
+// Compras, Estoque e Faturamento). Deduplicado — para outros papéis, retorna
+// só o próprio departamento (sem uso prático, já que só GERENTES é escopado
+// por departamento nas aprovações).
+export function departamentosDoGestor(user: Pick<User, 'departamento_id' | 'departamentosAdicionais'>): string[] {
+  return Array.from(new Set([user.departamento_id, ...(user.departamentosAdicionais ?? [])]));
+}
 
 export const IMPORT_TEMPLATE_HEADERS = [
   'nome_colaborador',
@@ -23,6 +41,22 @@ export const IMPORT_TEMPLATE_HEADERS = [
   'peso',
   'objetivo',
   'safra',
+];
+
+export const IMPORT_USUARIOS_TEMPLATE_HEADERS = [
+  'nome',
+  'email',
+  'cpf',
+  'matricula',
+  'departamento',
+  'cargo',
+  'role',
+  'filial',
+  'data_nascimento',
+  'data_admissao',
+  'telefone',
+  'celular',
+  'endereco',
 ];
 
 export const STATUS_META: Record<IndicadorStatus, { label: string; badge: string; icon: string }> = {
