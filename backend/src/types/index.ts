@@ -1,4 +1,4 @@
-export type Role = 'MASTER' | 'GESTOR' | 'COLABORADOR';
+export type Role = 'MASTER' | 'ADMIN' | 'GERENTES' | 'COORDENADORES_SUPERVISORES' | 'COLABORADOR';
 
 export type IndicadorStatus =
   | 'EM_ANDAMENTO'
@@ -23,7 +23,7 @@ export type GrupoPPR = (typeof PPR_GRUPOS)[number];
 
 export interface AuthUser {
   id: string;
-  email: string;
+  email: string | null;
   nome: string;
   role: Role;
   departamentoId: string;
@@ -31,10 +31,12 @@ export interface AuthUser {
 
 export interface User {
   id: string;
-  email: string;
+  // Opcional: usuário pode ser cadastrado só com CPF (ver
+  // ImportUsuariosModal.tsx no frontend) até alguém completar o cadastro
+  // com o email/Entra ID.
+  email: string | null;
   nome: string;
   cpf: string | null;
-  matricula: string | null;
   departamento_id: string;
   departamento?: string;
   cargo_id: string | null;
@@ -45,9 +47,6 @@ export interface User {
   data_nascimento: string | null;
   data_admissao: string | null;
   filial: string | null;
-  endereco_completo: string | null;
-  telefone: string | null;
-  celular: string | null;
   criado_em: string;
   atualizado_em: string;
 }

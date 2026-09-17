@@ -15,8 +15,9 @@ export async function list(req: Request, res: Response): Promise<void> {
     status: status as IndicadorStatus | undefined,
     search,
   });
-  // GESTOR/MASTER também podem filtrar por departamento explicitamente
-  // quando MASTER (GESTOR já é escopado ao próprio depto no service).
+  // Qualquer papel pode filtrar por departamento explicitamente quando tem
+  // acesso amplo (MASTER/ADMIN) — gerentes/coordenadores já são escopados
+  // ao próprio departamento no service.
   const filtrado = departamento ? data.filter((i) => i.departamento_id === departamento) : data;
   ok(res, filtrado);
 }

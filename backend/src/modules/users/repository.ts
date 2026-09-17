@@ -6,7 +6,6 @@ const SELECT_COLUMNS = [
   'users.email',
   'users.nome',
   'users.cpf',
-  'users.matricula',
   'users.departamento_id',
   'departamentos.nome as departamento',
   'users.cargo_id',
@@ -17,9 +16,6 @@ const SELECT_COLUMNS = [
   'users.data_nascimento',
   'users.data_admissao',
   'users.filial',
-  'users.endereco_completo',
-  'users.telefone',
-  'users.celular',
   'users.criado_em',
   'users.atualizado_em',
 ];
@@ -56,37 +52,29 @@ export async function findByCpf(cpf: string): Promise<User | undefined> {
 }
 
 interface CreateUserInput {
-  email: string;
+  email?: string | null;
   nome: string;
   cpf?: string | null;
-  matricula?: string | null;
   departamento_id: string;
   cargo_id?: string | null;
   role: Role;
   data_nascimento?: string | null;
   data_admissao?: string | null;
   filial?: string | null;
-  endereco_completo?: string | null;
-  telefone?: string | null;
-  celular?: string | null;
 }
 
 export async function create(input: CreateUserInput): Promise<User> {
   const [row] = await db('users')
     .insert({
-      email: input.email.trim().toLowerCase(),
+      email: input.email ? input.email.trim().toLowerCase() : null,
       nome: input.nome.trim(),
       cpf: input.cpf ?? null,
-      matricula: input.matricula ?? null,
       departamento_id: input.departamento_id,
       cargo_id: input.cargo_id ?? null,
       role: input.role,
       data_nascimento: input.data_nascimento ?? null,
       data_admissao: input.data_admissao ?? null,
       filial: input.filial ?? null,
-      endereco_completo: input.endereco_completo ?? null,
-      telefone: input.telefone ?? null,
-      celular: input.celular ?? null,
     })
     .returning('id');
   const created = await findById(row.id);
@@ -96,17 +84,14 @@ export async function create(input: CreateUserInput): Promise<User> {
 
 interface UpdateUserInput {
   nome?: string;
+  email?: string | null;
   cpf?: string | null;
-  matricula?: string | null;
   departamento_id?: string;
   cargo_id?: string | null;
   role?: Role;
   data_nascimento?: string | null;
   data_admissao?: string | null;
   filial?: string | null;
-  endereco_completo?: string | null;
-  telefone?: string | null;
-  celular?: string | null;
 }
 
 export async function update(id: string, input: UpdateUserInput): Promise<User | undefined> {
@@ -115,8 +100,19 @@ export async function update(id: string, input: UpdateUserInput): Promise<User |
     if (valor !== undefined) campos[chave] = valor;
   }
   if (campos.nome) campos.nome = String(campos.nome).trim();
+  if (typeof campos.email === 'string') {
+    campos.email = campos.email.trim().toLowerCase() || null;
+  }
   await db('users').where('id', id).update(campos);
   return findById(id);
+}
+
+// Exclusão definitiva — o FK de indicadores.usuario_responsavel_id não tem
+// onDelete definido (NO ACTION), então o Postgres já recusa sozinho excluir
+// um usuário que ainda é responsável por algum indicador (ver
+// service.removeUser, que traduz esse erro numa mensagem amigável).
+export async function remove(id: string): Promise<void> {
+  await db('users').where('id', id).del();
 }
 
 export async function setAtivo(id: string, ativo: boolean): Promise<User | undefined> {
@@ -132,4 +128,48 @@ export async function setAtivo(id: string, ativo: boolean): Promise<User | undef
 
 export async function registrarUltimoLogin(id: string): Promise<void> {
   await db('users').where('id', id).update({ ultimo_login: db.fn.now() });
+}
+
+// --- Autenticação (senha + Entra ID) --------------------------------------
+// SELECT_COLUMNS nunca inclui password_hash/tokens — só esta consulta
+// separada, usada exclusivamente por auth/service.ts, expõe o hash.
+
+export async function findByEmailComSenha(
+  email: string,
+): Promise<(User & { password_hash: string | null }) | undefined> {
+  return baseQuery()
+    .select('users.password_hash')
+    .whereRaw('LOWER(users.email) = LOWER(?)', [email])
+    .first();
+}
+
+export async function setSenha(id: string, passwordHash: string): Promise<void> {
+  await db('users').where('id', id).update({
+    password_hash: passwordHash,
+    auth_provider: 'LOCAL',
+    password_reset_token: null,
+    password_reset_expires_at: null,
+    atualizado_em: db.fn.now(),
+  });
+}
+
+export async function setTokenDefinicaoSenha(id: string, tokenHash: string, expiresAt: Date): Promise<void> {
+  await db('users').where('id', id).update({
+    password_reset_token: tokenHash,
+    password_reset_expires_at: expiresAt,
+    atualizado_em: db.fn.now(),
+  });
+}
+
+export async function findByTokenDefinicaoSenha(
+  tokenHash: string,
+): Promise<(User & { password_reset_expires_at: string | null }) | undefined> {
+  return baseQuery()
+    .select('users.password_reset_expires_at')
+    .where('users.password_reset_token', tokenHash)
+    .first();
+}
+
+export async function marcarProviderEntra(id: string): Promise<void> {
+  await db('users').where('id', id).update({ auth_provider: 'ENTRA', atualizado_em: db.fn.now() });
 }

@@ -12,11 +12,32 @@ export function validatePeso(peso: number): string | null {
   return null;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function validateEmail(email: string): string | null {
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email.trim()) return 'Email é obrigatório';
-  if (!regex.test(email)) return 'Email inválido';
+  if (!EMAIL_REGEX.test(email)) return 'Email inválido';
   return null;
+}
+
+// Campo opcional (ex.: importação de planilha, onde nem todo mundo já tem
+// email corporativo) — só valida o formato quando algo foi digitado.
+export function validateEmailOpcional(email: string): string | null {
+  if (!email.trim()) return null;
+  if (!EMAIL_REGEX.test(email)) return 'Email inválido';
+  return null;
+}
+
+// Planilhas Excel guardam CPF como número quando a célula não está formatada
+// como texto — isso derruba zeros à esquerda (ex.: "02793397121" vira
+// "2793397121"). CPF tem sempre 11 dígitos, então completa à esquerda antes
+// de validar/comparar. Usar só em leitura de planilha (import) — nunca em
+// digitação manual, onde um CPF de 10 dígitos é erro de digitação, não zero
+// perdido, e "corrigir" sozinho esconderia o erro.
+export function normalizarCpfDigitos(cpf: string): string {
+  const digitos = cpf.replace(/\D/g, '');
+  if (!digitos || digitos.length >= 11) return digitos;
+  return digitos.padStart(11, '0');
 }
 
 // Algoritmo oficial de validação do CPF (módulo 11 nos dois dígitos

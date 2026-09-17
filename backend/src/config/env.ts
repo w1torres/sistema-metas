@@ -23,6 +23,35 @@ export const env = {
     expiry: process.env.JWT_EXPIRY ?? '8h',
   },
 
+  auth: {
+    // Domínios cujo email só entra via Microsoft Entra ID — qualquer outro
+    // domínio usa senha. Lista, não um único valor fixo, pra permitir
+    // adicionar domínio (ex.: empresa adquirida) sem alterar código.
+    corporateEmailDomains: (process.env.CORPORATE_EMAIL_DOMAINS ?? '')
+      .split(',')
+      .map((d) => d.trim().toLowerCase())
+      .filter(Boolean),
+    msal: {
+      clientId: process.env.MSAL_CLIENT_ID ?? '',
+      tenantId: process.env.MSAL_TENANT_ID ?? '',
+      // Nunca true de verdade em produção, mesmo que a env var esteja mal
+      // configurada — ver segunda condição. Ver auth/service.ts.
+      modoLocal: process.env.MSAL_MODO_LOCAL === 'true' && process.env.NODE_ENV !== 'production',
+    },
+    // Login antigo (só email, sem senha) — mantido atrás desta flag durante a
+    // migração pro backend real (ver plano "Etapa 2"), nunca em produção.
+    devLoginEnabled: process.env.DEV_LOGIN_ENABLED === 'true' && process.env.NODE_ENV !== 'production',
+    passwordResetTokenTtlHours: Number(process.env.PASSWORD_RESET_TOKEN_TTL_HOURS ?? 48),
+  },
+
+  smtp: {
+    host: process.env.SMTP_HOST ?? '',
+    port: Number(process.env.SMTP_PORT ?? 587),
+    user: process.env.SMTP_USER ?? '',
+    password: process.env.SMTP_PASSWORD ?? '',
+    from: process.env.SMTP_FROM ?? 'no-reply@tcheagricola.com.br',
+  },
+
   storage: {
     localPath: process.env.STORAGE_LOCAL_PATH ?? './uploads',
     maxFileSize: Number(process.env.MAX_FILE_SIZE ?? 10 * 1024 * 1024),

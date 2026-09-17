@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Nunca commitar o .env de verdade (mesmo sem secret real aqui, o Client ID
+# do Entra ID pode mudar por ambiente) — .env.example fica versionado.
+.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

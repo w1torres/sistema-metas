@@ -1,14 +1,29 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '../types';
-import { useUserStore } from './userStore';
+import { apiClient, ApiClientError } from '../api/client';
+import { mapUser, type BackendUser } from '../api/mappers';
+
+interface LoginResult {
+  ok: true;
+}
+interface LoginError {
+  ok: false;
+  error: string;
+}
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string) => { ok: true } | { ok: false; error: string };
+  loginSenha: (email: string, senha: string) => Promise<LoginResult | LoginError>;
+  loginEntraId: (input: { idToken?: string; email?: string }) => Promise<LoginResult | LoginError>;
   logout: () => void;
+}
+
+function mensagemErro(err: unknown): string {
+  if (err instanceof ApiClientError) return err.message;
+  return 'Não foi possível conectar ao servidor. Tente novamente.';
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -18,16 +33,31 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isLoading: false,
 
-      login: (email: string) => {
-        const found = useUserStore.getState().findByEmail(email);
-        if (!found) {
-          return { ok: false, error: 'Usuário não encontrado. Use um dos emails de exemplo ou peça a um administrador para cadastrá-lo.' };
+      loginSenha: async (email, senha) => {
+        set({ isLoading: true });
+        try {
+          const data = await apiClient.post<{ token: string; user: BackendUser }>('/auth/login-senha', {
+            email,
+            senha,
+          });
+          set({ user: mapUser(data.user), token: data.token, isLoading: false });
+          return { ok: true };
+        } catch (err) {
+          set({ isLoading: false });
+          return { ok: false, error: mensagemErro(err) };
         }
-        if (!found.ativo) {
-          return { ok: false, error: 'Usuário inativo.' };
+      },
+
+      loginEntraId: async (input) => {
+        set({ isLoading: true });
+        try {
+          const data = await apiClient.post<{ token: string; user: BackendUser }>('/auth/entra', input);
+          set({ user: mapUser(data.user), token: data.token, isLoading: false });
+          return { ok: true };
+        } catch (err) {
+          set({ isLoading: false });
+          return { ok: false, error: mensagemErro(err) };
         }
-        set({ user: found, token: `mock-jwt-${found.id}` });
-        return { ok: true };
       },
 
       logout: () => set({ user: null, token: null }),

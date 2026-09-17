@@ -1,57 +1,109 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
-import { useUserStore } from '../../store/userStore';
 import { Input } from '../common/Input';
 import Button from '../common/Button';
 import { validateEmail } from '../../utils/validators';
-import { ROLE_LABELS } from '../../utils/constants';
+import { isCorporateEmail, loginComEntraId, msalModoLocal } from '../../utils/entraId';
 import logo from '../../assets/favicon.png';
-import type { User } from '../../types';
 
 export default function LoginScreen() {
   const navigate = useNavigate();
-  const login = useAuthStore((s) => s.login);
-  const demoUsers = useUserStore((s) => s.users).filter((u) => u.ativo);
+  const loginSenha = useAuthStore((s) => s.loginSenha);
+  const loginEntraId = useAuthStore((s) => s.loginEntraId);
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  const corporativo = useMemo(() => isCorporateEmail(email), [email]);
+
+  async function irParaDashboard() {
+    toast.success('Login realizado com sucesso!');
+    navigate('/dashboard', { replace: true });
+  }
+
+  // Só em build de dev (`npm run dev`) — some do `npm run build`, então nunca
+  // aparece em produção. Contas fixas do seed local (ver 01_seed_all.ts) só
+  // pra evitar redigitar email/senha a cada teste manual.
+  async function handleLoginRapido(emailConta: string) {
+    setError(null);
+    setEmail(emailConta);
+    setSenha('senha123');
+    setLoading(true);
+    const result = await loginSenha(emailConta, 'senha123');
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    await irParaDashboard();
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const emailError = validateEmail(email);
     if (emailError) {
       setError(emailError);
       return;
     }
+    if (corporativo) {
+      setError('Este e-mail é corporativo — entre com "Entrar com Microsoft" abaixo.');
+      return;
+    }
     if (!senha) {
-      setError('Informe uma senha (qualquer valor no protótipo).');
+      setError('Informe sua senha.');
       return;
     }
 
     setLoading(true);
     setError(null);
+    const result = await loginSenha(email, senha);
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    await irParaDashboard();
+  }
 
-    setTimeout(() => {
-      const result = login(email);
+  async function handleEntraId() {
+    setError(null);
+
+    if (msalModoLocal) {
+      const emailError = validateEmail(email);
+      if (emailError || !isCorporateEmail(email)) {
+        setError('Informe um e-mail corporativo no campo acima antes de entrar com Microsoft (modo local).');
+        return;
+      }
+      setLoading(true);
+      const result = await loginEntraId({ email });
       setLoading(false);
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      toast.success('Login realizado com sucesso!');
-      navigate('/dashboard', { replace: true });
-    }, 400);
-  }
+      await irParaDashboard();
+      return;
+    }
 
-  function quickLogin(user: User) {
-    setEmail(user.email);
-    setSenha('demo');
-    setError(null);
+    setLoading(true);
+    try {
+      const idToken = await loginComEntraId();
+      const result = await loginEntraId({ idToken });
+      setLoading(false);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      await irParaDashboard();
+    } catch (err) {
+      setLoading(false);
+      setError(err instanceof Error ? err.message : 'Não foi possível entrar com Microsoft.');
+    }
   }
 
   return (
@@ -63,14 +115,20 @@ export default function LoginScreen() {
           <p className="mt-1 text-sm text-secondary">Acompanhamento de Indicadores e Metas</p>
         </div>
 
-        <button
+        <Button
           type="button"
-          disabled
-          title="Disponível na Etapa 2 (integração Entra ID)"
-          className="mb-4 flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-border bg-gray-50 px-4 py-2 text-sm font-medium text-secondary"
+          variant="secondary"
+          onClick={handleEntraId}
+          loading={loading}
+          className="mb-4 w-full"
         >
           Entrar com Microsoft
-        </button>
+        </Button>
+        {msalModoLocal && (
+          <p className="mb-4 -mt-2 text-center text-xs text-secondary">
+            Modo local: digite um e-mail corporativo abaixo e clique em "Entrar com Microsoft" (sem popup real).
+          </p>
+        )}
 
         <div className="mb-4 flex items-center gap-3 text-xs text-secondary">
           <span className="h-px flex-1 bg-border" />
@@ -87,41 +145,57 @@ export default function LoginScreen() {
             placeholder="voce@empresa.com"
             required
           />
-          <Input
-            label="Senha"
-            type="password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            placeholder="qualquer valor (protótipo)"
-            required
-          />
+          {!corporativo && (
+            <Input
+              label="Senha"
+              type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              required
+            />
+          )}
+          {corporativo && (
+            <p className="text-xs text-secondary">
+              E-mail corporativo — use o botão "Entrar com Microsoft" acima em vez de senha.
+            </p>
+          )}
           {error && <p className="text-sm text-danger">{error}</p>}
-          <Button type="submit" loading={loading} className="w-full">
-            Entrar
-          </Button>
+          {!corporativo && (
+            <Button type="submit" loading={loading} className="w-full">
+              Entrar
+            </Button>
+          )}
         </form>
 
-        <div className="mt-6 border-t border-border pt-4">
-          <p className="mb-2 text-xs font-medium text-secondary">Usuários de demonstração:</p>
-          <div className="grid grid-cols-1 gap-1.5">
-            {demoUsers.map((user) => (
-              <button
-                key={user.id}
+        {import.meta.env.DEV && (
+          <div className="mt-6 border-t border-border pt-4">
+            <p className="mb-2 text-center text-xs font-medium text-secondary">
+              Modo local — contas de teste (seed)
+            </p>
+            <div className="flex gap-2">
+              <Button
                 type="button"
-                onClick={() => quickLogin(user)}
-                className="flex items-center justify-between rounded-md border border-border px-3 py-1.5 text-left text-xs hover:bg-gray-50"
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                loading={loading}
+                onClick={() => handleLoginRapido('admin@empresa.com')}
               >
-                <span>
-                  <span className="font-medium text-ink">{user.nome}</span>{' '}
-                  <span className="text-secondary">({user.email})</span>
-                </span>
-                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-secondary">
-                  {ROLE_LABELS[user.role]}
-                </span>
-              </button>
-            ))}
+                Admin
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                loading={loading}
+                onClick={() => handleLoginRapido('teste@empresa.com')}
+              >
+                Colaborador de Teste
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         <p className="mt-6 text-center text-xs text-secondary">© 2026 Empresa</p>
       </div>

@@ -1,5 +1,5 @@
 import { usePPRStore } from '../../store/pprStore';
-import { calcularPercentualPonderado } from '../../utils/ppr';
+import { calcularPercentualPonderado, roleParaGrupoPPR } from '../../utils/ppr';
 import { formatPercent } from '../../utils/formatters';
 import { ROLE_LABELS } from '../../utils/constants';
 import type { Indicador, Role } from '../../types';
@@ -16,7 +16,10 @@ export default function MeuPPRCard({ cargo, role, indicadores }: MeuPPRCardProps
   if (indicadores.length === 0) return null;
 
   const percentual = calcularPercentualPonderado(indicadores);
-  const faixa = faixaPara(role, percentual);
+  const faixa = faixaPara(role, cargo, percentual);
+  // Alguns cargos MASTER (ex.: Gerente de RH) participam do PPR como se
+  // fossem Gerentes — ver CARGOS_MASTER_COMO_GERENTE em utils/ppr.ts.
+  const foraDoPPR = !roleParaGrupoPPR(role, cargo);
 
   return (
     <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 shadow-sm">
@@ -35,10 +38,10 @@ export default function MeuPPRCard({ cargo, role, indicadores }: MeuPPRCardProps
           <p className="text-lg font-bold text-primary">{faixa ? `${faixa.multiplo}x` : '—'}</p>
         </div>
       </div>
-      {!faixa && (role === 'ADMIN' || role === 'MASTER') && (
+      {!faixa && foraDoPPR && (
         <p className="mt-2 text-xs text-secondary">Perfil {ROLE_LABELS[role]} não participa da Tabela de Múltiplos de PPR.</p>
       )}
-      {!faixa && role !== 'ADMIN' && role !== 'MASTER' && (
+      {!faixa && !foraDoPPR && (
         <p className="mt-2 text-xs text-secondary">
           Nenhuma faixa de PPR cadastrada ainda para {ROLE_LABELS[role]}. Fale com o RH para configurar em Tabelas.
         </p>

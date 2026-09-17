@@ -29,18 +29,24 @@ export function formatCPF(valor: string): string {
     .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
 }
 
-// Mascara progressivamente telefone fixo (10 dígitos) ou celular (11 dígitos):
-// "6132161000" -> "(61) 3216-1000", "61987651000" -> "(61) 98765-1000".
-export function formatTelefone(valor: string): string {
-  const digitos = valor.replace(/\D/g, '').slice(0, 11);
-  if (digitos.length <= 10) {
-    return digitos
-      .replace(/(\d{2})(\d)/, '($1) $2')
-      .replace(/(\d{4})(\d{1,4})$/, '$1-$2');
-  }
-  return digitos
-    .replace(/(\d{2})(\d)/, '($1) $2')
-    .replace(/(\d{5})(\d{1,4})$/, '$1-$2');
+// Conectivos que ficam em minúsculo no meio do nome ("Bruna da Silva Xavier",
+// não "Bruna Da Silva Xavier") — nunca no início.
+const CONECTIVOS_NOME = new Set(['de', 'da', 'do', 'das', 'dos', 'e']);
+
+// Nomes importados de planilha costumam vir TUDO EM MAIÚSCULO (padrão comum
+// de exportação de RH) — deixa em Title Case pra não "gritar" no card e caber
+// melhor no espaço disponível. Funciona em qualquer entrada (maiúscula,
+// minúscula ou mista), já que normaliza tudo antes de recapitalizar.
+export function formatarNomeProprio(nome: string): string {
+  return nome
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((palavra, idx) => {
+      if (idx > 0 && CONECTIVOS_NOME.has(palavra)) return palavra;
+      return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+    })
+    .join(' ');
 }
 
 export function initials(nome: string): string {

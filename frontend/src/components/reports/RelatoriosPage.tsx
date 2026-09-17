@@ -48,7 +48,7 @@ function summarizeByDepartamento(indicators: Indicador[]): DepartamentoResumo[] 
 function summarizeByColaborador(
   indicators: Indicador[],
   users: User[],
-  faixaPara: (role: Role, percentual: number) => PPRFaixa | undefined,
+  faixaPara: (role: Role, cargo: string | undefined, percentual: number) => PPRFaixa | undefined,
 ): ColaboradorResumo[] {
   const ids = Array.from(new Set(indicators.map((i) => i.usuario_responsavel_id)));
   return ids
@@ -65,7 +65,7 @@ function summarizeByColaborador(
         total: items.length,
         concluidos,
         percentualPonderado: Math.round(percentualPonderado),
-        faixa: user ? faixaPara(user.role, percentualPonderado) : undefined,
+        faixa: user ? faixaPara(user.role, user.cargo, percentualPonderado) : undefined,
       };
     })
     .sort((a, b) => b.percentualPonderado - a.percentualPonderado);

@@ -15,8 +15,12 @@ export default function UsuarioCard({ usuario, onSelect }: UsuarioCardProps) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-semibold text-ink">{usuario.nome}</p>
-          <p className="truncate text-xs text-secondary">{usuario.email}</p>
+          <p className="break-words text-sm font-semibold leading-snug text-ink">{usuario.nome}</p>
+          {usuario.email ? (
+            <p className="truncate text-xs text-secondary">{usuario.email}</p>
+          ) : (
+            <p className="truncate text-xs font-medium text-warning">Sem email — acesso pendente</p>
+          )}
         </div>
         <span
           className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${

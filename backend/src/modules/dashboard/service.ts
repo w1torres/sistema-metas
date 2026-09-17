@@ -1,6 +1,7 @@
 import * as repository from './repository.js';
 import type { StatsRow } from './repository.js';
 import { db } from '../../db/knex.js';
+import { temAcessoAmplo } from '../../utils/roles.js';
 import type { AuthUser, DashboardResumo, DashboardStats } from '../../types/index.js';
 
 // Mesmas 3 categorias das views v_dashboard_stats_* da spec: "pendentes"
@@ -54,7 +55,7 @@ function agruparPorDepartamento(rows: StatsRow[]): NonNullable<DashboardStats['p
 }
 
 export async function getStats(user: AuthUser): Promise<DashboardStats> {
-  if (user.role === 'MASTER') {
+  if (temAcessoAmplo(user.role)) {
     const rows = await repository.findStatsRows();
     return {
       resumo_geral: calcResumo(rows),
@@ -63,7 +64,7 @@ export async function getStats(user: AuthUser): Promise<DashboardStats> {
     };
   }
 
-  // GESTOR só vê o próprio departamento.
+  // GERENTES/COORDENADORES_SUPERVISORES só veem o próprio departamento.
   const rows = await repository.findStatsRows(user.departamentoId);
   const departamentoNome =
     rows[0]?.departamento_nome ??

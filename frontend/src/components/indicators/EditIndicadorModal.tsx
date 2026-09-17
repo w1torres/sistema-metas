@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import Modal from '../common/Modal';
+import ConfirmModal from '../common/ConfirmModal';
 import Button from '../common/Button';
 import { Input, Select, Textarea } from '../common/Input';
 import type { Indicador, IndicadorStatus } from '../../types';
@@ -63,12 +64,17 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
 
   const [form, setForm] = useState<FormState>(toFormState(indicador));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
 
   useEffect(() => {
     setForm(toFormState(indicador));
     setErrors({});
   }, [indicador, isOpen]);
 
+  // Sem email o colaborador ainda não tem acesso pra logar e reportar o
+  // indicador sozinho, mas isso não impede ser responsável por um — a
+  // maioria dos colaboradores importados ainda está só com CPF (cadastro em
+  // etapas) e precisa poder receber indicador antes de completar o email.
   const ativos = users.filter((u) => u.ativo);
   const colaboradores = form.departamento_id
     ? ativos.filter((u) => u.departamento_id === form.departamento_id)
@@ -137,15 +143,19 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
 
   function handleDelete() {
     if (!indicador) return;
-    if (!window.confirm('Você tem certeza de que deseja deletar este indicador? Essa ação não pode ser desfeita.')) {
-      return;
-    }
+    setConfirmandoExclusao(true);
+  }
+
+  function confirmarExclusao() {
+    if (!indicador) return;
     deleteIndicador(indicador.id);
     toast.success('Indicador removido.');
+    setConfirmandoExclusao(false);
     onClose();
   }
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -190,7 +200,7 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
           value={form.usuario_responsavel_id}
           onChange={(value) => setForm((f) => ({ ...f, usuario_responsavel_id: value }))}
           placeholder="Selecione..."
-          options={colaboradores.map((u) => ({ value: u.id, label: `${u.nome} (${u.email})` }))}
+          options={colaboradores.map((u) => ({ value: u.id, label: u.email ? `${u.nome} (${u.email})` : u.nome }))}
           error={errors.usuario_responsavel_id}
         />
 
@@ -244,5 +254,15 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
         )}
       </div>
     </Modal>
+
+    <ConfirmModal
+      isOpen={confirmandoExclusao}
+      title="Excluir indicador"
+      message="Tem certeza de que deseja excluir este indicador? Essa ação não pode ser desfeita."
+      confirmLabel="Excluir"
+      onConfirm={confirmarExclusao}
+      onCancel={() => setConfirmandoExclusao(false)}
+    />
+    </>
   );
 }

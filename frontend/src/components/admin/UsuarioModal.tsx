@@ -8,7 +8,7 @@ import { useDepartmentStore } from '../../store/departmentStore';
 import { useCargoStore } from '../../store/cargoStore';
 import { ROLE_LABELS, ROLE_OPTIONS } from '../../utils/constants';
 import { validateEmail, validateCPF } from '../../utils/validators';
-import { formatCPF, formatTelefone } from '../../utils/formatters';
+import { formatCPF } from '../../utils/formatters';
 import type { Role, User } from '../../types';
 
 interface UsuarioModalProps {
@@ -37,9 +37,6 @@ export default function UsuarioModal({ isOpen, onClose, usuario }: UsuarioModalP
   const [dataNascimento, setDataNascimento] = useState('');
   const [dataAdmissao, setDataAdmissao] = useState('');
   const [filial, setFilial] = useState('');
-  const [enderecoCompleto, setEnderecoCompleto] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [celular, setCelular] = useState('');
   const [departamentosAdicionais, setDepartamentosAdicionais] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -56,9 +53,6 @@ export default function UsuarioModal({ isOpen, onClose, usuario }: UsuarioModalP
     setDataNascimento(usuario?.dataNascimento ?? '');
     setDataAdmissao(usuario?.dataAdmissao ?? '');
     setFilial(usuario?.filial ?? '');
-    setEnderecoCompleto(usuario?.enderecoCompleto ?? '');
-    setTelefone(usuario?.telefone ?? '');
-    setCelular(usuario?.celular ?? '');
     setDepartamentosAdicionais(usuario?.departamentosAdicionais ?? []);
     setErrors({});
   }, [isOpen, usuario]);
@@ -68,7 +62,7 @@ export default function UsuarioModal({ isOpen, onClose, usuario }: UsuarioModalP
     onClose();
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const nextErrors: Record<string, string> = {};
     if (!nome.trim()) nextErrors.nome = 'Nome é obrigatório';
     const emailError = validateEmail(email);
@@ -87,9 +81,9 @@ export default function UsuarioModal({ isOpen, onClose, usuario }: UsuarioModalP
     }
 
     const departamento = novoDepartamento.trim()
-      ? findOrCreateDepartamento(novoDepartamento.trim())
+      ? await findOrCreateDepartamento(novoDepartamento.trim())
       : departments.find((d) => d.id === departamentoId)!;
-    const cargoFinal = novoCargo.trim() ? findOrCreateCargo(novoCargo.trim()) : cargo;
+    const cargoFinal = novoCargo.trim() ? await findOrCreateCargo(novoCargo.trim()) : cargo;
 
     const input = {
       nome: nome.trim(),
@@ -102,16 +96,21 @@ export default function UsuarioModal({ isOpen, onClose, usuario }: UsuarioModalP
       dataNascimento: dataNascimento || undefined,
       dataAdmissao: dataAdmissao || undefined,
       filial: filial.trim() || undefined,
-      enderecoCompleto: enderecoCompleto.trim() || undefined,
-      telefone: telefone.trim() || undefined,
-      celular: celular.trim() || undefined,
       departamentosAdicionais: role === 'GERENTES' ? departamentosAdicionais.filter((id) => id !== departamento.id) : [],
     };
 
-    const result = editando ? updateUser(usuario!.id, input) : addUser(input);
+    const result = editando ? await updateUser(usuario!.id, input) : await addUser(input);
 
     if (!result.ok) {
-      setErrors({ [result.error.includes('CPF') ? 'cpf' : 'email']: result.error });
+      if (result.error.includes('CPF')) {
+        setErrors({ cpf: result.error });
+      } else if (result.error.toLowerCase().includes('email')) {
+        setErrors({ email: result.error });
+      } else {
+        // Erro genérico (ex.: registro não existe mais no banco) não é sobre
+        // nenhum campo específico — mostrar preso ao email confundia o motivo real.
+        toast.error(result.error);
+      }
       return;
     }
 
@@ -176,33 +175,7 @@ export default function UsuarioModal({ isOpen, onClose, usuario }: UsuarioModalP
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input
-            label="Telefone"
-            value={telefone}
-            onChange={(e) => setTelefone(formatTelefone(e.target.value))}
-            placeholder="(00) 0000-0000"
-            inputMode="numeric"
-            maxLength={14}
-          />
-          <Input
-            label="Celular"
-            value={celular}
-            onChange={(e) => setCelular(formatTelefone(e.target.value))}
-            placeholder="(00) 00000-0000"
-            inputMode="numeric"
-            maxLength={15}
-          />
-        </div>
-
         <Input label="Filial" value={filial} onChange={(e) => setFilial(e.target.value)} placeholder="Ex: FORMOSA-GO" />
-
-        <Input
-          label="Endereço"
-          value={enderecoCompleto}
-          onChange={(e) => setEnderecoCompleto(e.target.value)}
-          placeholder="Rua, número, bairro, cidade-UF"
-        />
 
         <Select
           label="Departamento"

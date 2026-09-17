@@ -2,7 +2,8 @@ import clsx from 'clsx';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
-import { COLABORADOR_TIER_ROLES, departamentosDoGestor } from '../../utils/constants';
+import { useUserStore } from '../../store/userStore';
+import { COLABORADOR_TIER_ROLES, departamentosDoGestor, ehGestorDepartamento } from '../../utils/constants';
 
 interface NavItem {
   label: string;
@@ -18,31 +19,40 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const user = useAuthStore((s) => s.user);
   const indicators = useIndicatorStore((s) => s.indicators);
+  const users = useUserStore((s) => s.users);
   const navigate = useNavigate();
   const location = useLocation();
 
   if (!user) return null;
 
+  // Coordenador/Supervisor só vira "gestor de departamento" (mesmo nível de
+  // GERENTES pra aprovação) quando o departamento dele não tem nenhum
+  // Gerente ativo — ver ehGestorDepartamento e AprovacoesPage.
+  const souGestorDepartamento = user.role === 'GERENTES' || ehGestorDepartamento(user, users);
+
   let pendentesAprovacao = 0;
-  if (user.role === 'GERENTES') {
+  if (souGestorDepartamento) {
     const meusDepartamentos = departamentosDoGestor(user);
     pendentesAprovacao = indicators.filter(
       (i) => i.status === 'AGUARDANDO_APROVACAO_GESTOR' && meusDepartamentos.includes(i.departamento_id),
     ).length;
-  } else if (user.role === 'MASTER' || user.role === 'ADMIN') {
+  } else if (user.role === 'MASTER') {
+    // Só MASTER faz a etapa final (AGUARDANDO_APROVACAO_RH) — ver AprovacoesPage.
     pendentesAprovacao = indicators.filter(
       (i) => i.status === 'AGUARDANDO_APROVACAO_GESTOR' || i.status === 'AGUARDANDO_APROVACAO_RH',
     ).length;
+  } else if (user.role === 'ADMIN') {
+    pendentesAprovacao = indicators.filter((i) => i.status === 'AGUARDANDO_APROVACAO_GESTOR').length;
   }
 
   let items: NavItem[];
-  if (COLABORADOR_TIER_ROLES.includes(user.role)) {
-    items = [{ label: 'Meus Indicadores', path: '/dashboard' }];
-  } else if (user.role === 'GERENTES') {
+  if (souGestorDepartamento) {
     items = [
       { label: 'Meus Indicadores', path: '/dashboard' },
       { label: 'Aprovações', path: '/aprovacoes', badge: pendentesAprovacao },
     ];
+  } else if (COLABORADOR_TIER_ROLES.includes(user.role)) {
+    items = [{ label: 'Meus Indicadores', path: '/dashboard' }];
   } else if (user.role === 'MASTER') {
     items = [
       { label: 'Visão Geral', path: '/dashboard' },
@@ -50,6 +60,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       { label: 'Aprovações', path: '/aprovacoes', badge: pendentesAprovacao },
       { label: 'Relatórios', path: '/relatorios' },
       { label: 'Tabelas', path: '/ppr' },
+      { label: 'Usuários', path: '/usuarios' },
     ];
   } else {
     items = [

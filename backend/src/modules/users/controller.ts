@@ -3,31 +3,33 @@ import Joi from 'joi';
 import * as usersService from './service.js';
 
 const dataSchema = Joi.date().iso().max('now');
+const ROLES = ['MASTER', 'ADMIN', 'GERENTES', 'COORDENADORES_SUPERVISORES', 'COLABORADOR'] as const;
 
 const camposCadastro = {
   cpf: Joi.string().allow(null, ''),
-  matricula: Joi.string().allow(null, ''),
   cargo_id: Joi.string().uuid().allow(null, ''),
   data_nascimento: Joi.date().iso().allow(null, ''),
   data_admissao: dataSchema.allow(null, '').messages({ 'date.max': 'Data de admissão não pode ser no futuro' }),
   filial: Joi.string().allow(null, ''),
-  endereco_completo: Joi.string().allow(null, ''),
-  telefone: Joi.string().allow(null, ''),
-  celular: Joi.string().allow(null, ''),
 };
 
+// Email é opcional — quem ainda não tem email corporativo entra cadastrado
+// mas sem acesso, identificado só pelo CPF (ver ImportUsuariosModal.tsx no
+// frontend) até alguém completar o cadastro depois. Por isso o serviço
+// (não o Joi) exige pelo menos um dos dois — aqui só valida o formato.
 const createUserSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().email().allow(null, ''),
   nome: Joi.string().min(2).required(),
   departamento_id: Joi.string().uuid().required(),
-  role: Joi.string().valid('MASTER', 'GESTOR', 'COLABORADOR').required(),
+  role: Joi.string().valid(...ROLES).required(),
   ...camposCadastro,
 });
 
 const updateUserSchema = Joi.object({
   nome: Joi.string().min(2),
+  email: Joi.string().email().allow(null, ''),
   departamento_id: Joi.string().uuid(),
-  role: Joi.string().valid('MASTER', 'GESTOR', 'COLABORADOR'),
+  role: Joi.string().valid(...ROLES),
   ...camposCadastro,
 }).min(1);
 
@@ -64,4 +66,9 @@ export async function toggleAtivo(req: Request, res: Response): Promise<void> {
   }
   const user = await usersService.toggleAtivo(req.params.id, ativo, req.user!.id);
   res.json({ success: true, data: user });
+}
+
+export async function remove(req: Request, res: Response): Promise<void> {
+  await usersService.removeUser(req.params.id, req.user!.id);
+  res.status(204).send();
 }

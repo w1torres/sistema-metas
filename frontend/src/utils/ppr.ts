@@ -11,11 +11,20 @@ export const GRUPO_DEMAIS = 'DEMAIS CARGOS';
 
 export const PPR_GRUPOS = [GRUPO_GERENTES, GRUPO_COORDENADORES, GRUPO_DEMAIS] as const;
 
-// ADMIN/MASTER não têm faixa de PPR — não são avaliados nesta tabela.
-export function roleParaGrupoPPR(role: Role): string | undefined {
+// Cargos MASTER que, mesmo tendo acesso total ao sistema, continuam sendo
+// avaliados no PPR como gerentes (ex.: Gerente de RH acumula os dois papéis).
+// Outros MASTER (ex.: Controller) ficam de fora do PPR, como ADMIN.
+const CARGOS_MASTER_COMO_GERENTE = ['GERENTE DE RH', 'GERENTE DO RH', 'GERENTE RH'];
+
+// ADMIN/MASTER normalmente não têm faixa de PPR — não são avaliados nesta
+// tabela — exceto os cargos MASTER listados acima em CARGOS_MASTER_COMO_GERENTE.
+export function roleParaGrupoPPR(role: Role, cargo?: string): string | undefined {
   if (role === 'GERENTES') return GRUPO_GERENTES;
   if (role === 'COORDENADORES_SUPERVISORES') return GRUPO_COORDENADORES;
   if (role === 'COLABORADOR') return GRUPO_DEMAIS;
+  if (role === 'MASTER' && cargo && CARGOS_MASTER_COMO_GERENTE.includes(cargo.trim().toUpperCase())) {
+    return GRUPO_GERENTES;
+  }
   return undefined;
 }
 

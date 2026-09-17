@@ -58,7 +58,8 @@ interface IndicatorState {
   addAnexo: (id: string, anexo: Attachment, userId: string, userNome: string) => void;
   removeAnexo: (id: string, anexoId: string) => void;
   createIndicador: (
-    data: Pick<Indicador, 'nome' | 'peso' | 'departamento_id' | 'departamento' | 'usuario_responsavel_id' | 'responsavel' | 'objetivo' | 'data_inicio' | 'data_fim'>,
+    data: Pick<Indicador, 'nome' | 'peso' | 'departamento_id' | 'departamento' | 'usuario_responsavel_id' | 'responsavel' | 'objetivo' | 'data_inicio' | 'data_fim'> &
+      Partial<Pick<Indicador, 'detalhamento' | 'pilar' | 'meta' | 'formaMedicao' | 'evidenciaObrigatoria'>>,
     userId: string,
     userNome: string,
   ) => void;
@@ -393,9 +394,9 @@ export const useIndicatorStore = create<IndicatorState>((set, get) => {
       const novo: Indicador = {
         id: newId('ind'),
         ...data,
+        detalhamento: data.detalhamento ?? '',
         status: 'EM_ANDAMENTO',
         atendimento: 0,
-        detalhamento: '',
         concluido_em: null,
         criado_em: now,
         atualizado_em: now,

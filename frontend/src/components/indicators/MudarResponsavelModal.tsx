@@ -29,6 +29,7 @@ export default function MudarResponsavelModal({ isOpen, onClose, indicador }: Mu
   const candidatos = users.filter(
     (u) =>
       u.ativo &&
+      !!u.email && // sem email não tem acesso ao sistema ainda — não pode ser responsável
       u.id !== indicador.usuario_responsavel_id &&
       (u.nome.toLowerCase().includes(busca.toLowerCase()) || u.email.toLowerCase().includes(busca.toLowerCase())),
   );

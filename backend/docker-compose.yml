@@ -6,8 +6,8 @@ services:
     container_name: metas-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
+      POSTGRES_USER: metas-adm
+      POSTGRES_PASSWORD: Agro@4045
       POSTGRES_DB: metas_db
     # 5433 no host — a máquina já tem um PostgreSQL nativo ocupando a 5432.
     ports:
@@ -25,8 +25,8 @@ services:
     container_name: metas-pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@empresa.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_EMAIL: ti@tcheagricola.com.br
+      PGADMIN_DEFAULT_PASSWORD: Agro@4045
     ports:
       - "5050:80"
     depends_on:

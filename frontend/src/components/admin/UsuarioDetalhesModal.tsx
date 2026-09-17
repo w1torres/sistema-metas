@@ -11,6 +11,7 @@ interface UsuarioDetalhesModalProps {
   usuario: User | null;
   onEditar: () => void;
   onToggleAtivo: () => void;
+  onRemover: () => void;
   podeDesativar: boolean;
 }
 
@@ -29,6 +30,7 @@ export default function UsuarioDetalhesModal({
   usuario,
   onEditar,
   onToggleAtivo,
+  onRemover,
   podeDesativar,
 }: UsuarioDetalhesModalProps) {
   const departments = useDepartmentStore((s) => s.departments);
@@ -51,9 +53,14 @@ export default function UsuarioDetalhesModal({
             Fechar
           </Button>
           {podeDesativar && (
-            <Button variant="danger" onClick={onToggleAtivo}>
-              {usuario.ativo ? 'Desativar' : 'Reativar'}
-            </Button>
+            <>
+              <Button variant="danger" onClick={onRemover}>
+                Excluir
+              </Button>
+              <Button variant="danger" onClick={onToggleAtivo}>
+                {usuario.ativo ? 'Desativar' : 'Reativar'}
+              </Button>
+            </>
           )}
           <Button onClick={onEditar}>Editar</Button>
         </>
@@ -79,18 +86,12 @@ export default function UsuarioDetalhesModal({
             <Campo label="Email corporativo" value={usuario.email} />
             <Campo label="CPF" value={usuario.cpf} />
             <Campo label="Data de Nascimento" value={usuario.dataNascimento ? formatDate(usuario.dataNascimento) : null} />
-            <Campo label="Telefone" value={usuario.telefone} />
-            <Campo label="Celular" value={usuario.celular} />
-          </div>
-          <div className="mt-3">
-            <Campo label="Endereço" value={usuario.enderecoCompleto} />
           </div>
         </div>
 
         <div className="border-t border-border pt-4">
           <p className="mb-2 text-sm font-semibold text-ink">Dados Profissionais</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Campo label="Matrícula" value={usuario.matricula} />
             <Campo label="Departamento" value={usuario.departamento} />
             <Campo label="Cargo" value={usuario.cargo} />
             <Campo label="Filial" value={usuario.filial} />

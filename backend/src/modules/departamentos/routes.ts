@@ -7,4 +7,4 @@ export const departamentosRouter = Router();
 
 departamentosRouter.use(authMiddleware);
 departamentosRouter.get('/', controller.list);
-departamentosRouter.post('/', requireRole('MASTER'), controller.create);
+departamentosRouter.post('/', requireRole('MASTER', 'ADMIN'), controller.create);

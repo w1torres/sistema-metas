@@ -7,4 +7,4 @@ export const cargosRouter = Router();
 
 cargosRouter.use(authMiddleware);
 cargosRouter.get('/', controller.list);
-cargosRouter.post('/', requireRole('MASTER'), controller.create);
+cargosRouter.post('/', requireRole('MASTER', 'ADMIN'), controller.create);

@@ -1,6 +1,9 @@
+import crypto from 'node:crypto';
+import bcrypt from 'bcrypt';
 import request from 'supertest';
 import { app } from '../src/app.js';
 import { db } from '../src/db/knex.js';
+import * as usersRepository from '../src/modules/users/repository.js';
 
 interface Fixtures {
   deptAdmId: string;
@@ -10,6 +13,9 @@ interface Fixtures {
   gestorTiEmail: string;
   colabAdmEmail: string;
   indicadorId: string;
+  corporativoEmail: string;
+  comSenhaEmail: string;
+  comSenhaId: string;
 }
 
 let fx: Fixtures;
@@ -40,10 +46,10 @@ beforeAll(async () => {
     .insert({ email: 'master@teste.com', nome: 'Master Teste', departamento_id: deptAdm.id, role: 'MASTER' })
     .returning('id');
   const [gestorAdm] = await db('users')
-    .insert({ email: 'gestor.adm@teste.com', nome: 'Gestor Adm', departamento_id: deptAdm.id, role: 'GESTOR' })
+    .insert({ email: 'gestor.adm@teste.com', nome: 'Gestor Adm', departamento_id: deptAdm.id, role: 'GERENTES' })
     .returning('id');
   const [gestorTi] = await db('users')
-    .insert({ email: 'gestor.ti@teste.com', nome: 'Gestor TI', departamento_id: deptTi.id, role: 'GESTOR' })
+    .insert({ email: 'gestor.ti@teste.com', nome: 'Gestor TI', departamento_id: deptTi.id, role: 'GERENTES' })
     .returning('id');
   const [colabAdm] = await db('users')
     .insert({
@@ -68,6 +74,29 @@ beforeAll(async () => {
     })
     .returning('id');
 
+  // Email corporativo (domínio de CORPORATE_EMAIL_DOMAINS no setupEnv.ts) —
+  // só entra via /auth/entra, nunca por senha.
+  const [corporativo] = await db('users')
+    .insert({
+      email: 'colaborador@corp.teste.com',
+      nome: 'Colaborador Corporativo',
+      departamento_id: deptAdm.id,
+      role: 'COLABORADOR',
+    })
+    .returning('id');
+
+  // Email não-corporativo já com senha definida — simula quem já passou
+  // pelo fluxo de /auth/definir-senha.
+  const [comSenha] = await db('users')
+    .insert({
+      email: 'comsenha@teste.com',
+      nome: 'Usuário Com Senha',
+      departamento_id: deptAdm.id,
+      role: 'COLABORADOR',
+    })
+    .returning('id');
+  await usersRepository.setSenha(comSenha.id, await bcrypt.hash('senhaCorreta123', 10));
+
   fx = {
     deptAdmId: deptAdm.id,
     deptTiId: deptTi.id,
@@ -76,6 +105,9 @@ beforeAll(async () => {
     gestorTiEmail: 'gestor.ti@teste.com',
     colabAdmEmail: 'colab.adm@teste.com',
     indicadorId: indicador.id,
+    corporativoEmail: 'colaborador@corp.teste.com',
+    comSenhaEmail: 'comsenha@teste.com',
+    comSenhaId: comSenha.id,
   };
   void master;
   void gestorTi;
@@ -178,5 +210,117 @@ describe('Import de planilha', () => {
     expect(res.body.data.sucesso).toBe(1);
     expect(res.body.data.erros).toBe(1);
     expect(res.body.data.detalhes[0].erro).toMatch(/não encontrado/);
+  });
+});
+
+describe('Login por senha', () => {
+  it('loga com email não-corporativo e senha correta', async () => {
+    const res = await request(app)
+      .post('/api/auth/login-senha')
+      .send({ email: fx.comSenhaEmail, senha: 'senhaCorreta123' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.token).toBeTruthy();
+    expect(res.body.data.user.email).toBe(fx.comSenhaEmail);
+  });
+
+  it('rejeita senha errada', async () => {
+    const res = await request(app)
+      .post('/api/auth/login-senha')
+      .send({ email: fx.comSenhaEmail, senha: 'senhaErrada' });
+    expect(res.status).toBe(401);
+  });
+
+  it('rejeita login por senha pra email corporativo', async () => {
+    const res = await request(app)
+      .post('/api/auth/login-senha')
+      .send({ email: fx.corporativoEmail, senha: 'qualquer' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/Microsoft/);
+  });
+});
+
+describe('Login Entra ID (modo local)', () => {
+  it('loga email corporativo sem validar token de verdade', async () => {
+    const res = await request(app).post('/api/auth/entra').send({ email: fx.corporativoEmail });
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.email).toBe(fx.corporativoEmail);
+  });
+
+  it('rejeita email não-corporativo no login Entra ID', async () => {
+    const res = await request(app).post('/api/auth/entra').send({ email: fx.comSenhaEmail });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('Definição de senha via token', () => {
+  it('define a senha com um token válido e loga em seguida', async () => {
+    const tokenBruto = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(tokenBruto).digest('hex');
+    await usersRepository.setTokenDefinicaoSenha(fx.comSenhaId, tokenHash, new Date(Date.now() + 60 * 60 * 1000));
+
+    const res = await request(app)
+      .post('/api/auth/definir-senha')
+      .send({ token: tokenBruto, novaSenha: 'novaSenha456' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.token).toBeTruthy();
+
+    const loginComNovaSenha = await request(app)
+      .post('/api/auth/login-senha')
+      .send({ email: fx.comSenhaEmail, senha: 'novaSenha456' });
+    expect(loginComNovaSenha.status).toBe(200);
+  });
+
+  it('rejeita token expirado', async () => {
+    const tokenBruto = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(tokenBruto).digest('hex');
+    await usersRepository.setTokenDefinicaoSenha(fx.comSenhaId, tokenHash, new Date(Date.now() - 1000));
+
+    const res = await request(app)
+      .post('/api/auth/definir-senha')
+      .send({ token: tokenBruto, novaSenha: 'outraSenha789' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/expirado/);
+  });
+
+  it('rejeita token inexistente', async () => {
+    const res = await request(app)
+      .post('/api/auth/definir-senha')
+      .send({ token: 'token-que-nao-existe', novaSenha: 'qualquerSenha123' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('Exclusão de usuário', () => {
+  it('MASTER exclui um usuário sem indicadores', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const [descartavel] = await db('users')
+      .insert({ email: 'descartavel@teste.com', nome: 'Descartável', departamento_id: fx.deptAdmId, role: 'COLABORADOR' })
+      .returning('id');
+
+    const res = await request(app)
+      .delete(`/api/users/${descartavel.id}`)
+      .set('Authorization', `Bearer ${masterToken}`);
+    expect(res.status).toBe(204);
+
+    const aindaExiste = await db('users').where('id', descartavel.id).first();
+    expect(aindaExiste).toBeUndefined();
+  });
+
+  it('recusa excluir usuário responsável por indicador (FK) com mensagem amigável', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const res = await request(app)
+      .delete(`/api/users/${(await db('users').where('email', fx.colabAdmEmail).first()).id}`)
+      .set('Authorization', `Bearer ${masterToken}`);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/responsável por indicadores/);
+  });
+
+  it('recusa excluir a própria conta', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const master = await db('users').where('email', fx.masterEmail).first();
+    const res = await request(app)
+      .delete(`/api/users/${master.id}`)
+      .set('Authorization', `Bearer ${masterToken}`);
+    expect(res.status).toBe(400);
   });
 });

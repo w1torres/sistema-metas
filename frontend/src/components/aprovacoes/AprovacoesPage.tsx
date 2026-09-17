@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
@@ -12,7 +13,7 @@ import Button from '../common/Button';
 import { Input, Select } from '../common/Input';
 import { formatDate, formatFileSize } from '../../utils/formatters';
 import { formatMes, listarMesesDoPeriodo, mesAtual } from '../../utils/meses';
-import { departamentosDoGestor } from '../../utils/constants';
+import { departamentosDoGestor, ehGestorDepartamento } from '../../utils/constants';
 import type { Indicador } from '../../types';
 
 type Etapa = 'GESTOR' | 'RH' | 'MES' | 'FINAL';
@@ -218,7 +219,19 @@ export default function AprovacoesPage() {
   if (!user) return null;
 
   const isRHouAdmin = user.role === 'MASTER' || user.role === 'ADMIN';
-  const isGestorDepartamento = user.role === 'GERENTES';
+  const isGestorDepartamento = ehGestorDepartamento(user, users);
+  // Coordenador/Supervisor só chega aqui (ver APPROVER_ROLES) quando lidera
+  // ALGUM departamento sem Gerente — se não lidera nenhum, essa página não
+  // tem nada pra ele (não é RH/Admin nem gestor de fato): manda pro dashboard
+  // em vez de mostrar a fila de outros departamentos sem poder agir nela.
+  if (!isRHouAdmin && !isGestorDepartamento) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  // Aprovação final (AGUARDANDO_APROVACAO_RH -> CONCLUIDO) e a validação
+  // final de indicador mensal são exclusivas de MASTER — ADMIN tem acesso
+  // amplo a tudo mais (ver 1º nível/visão por departamento), mas não a essa
+  // etapa (decisão confirmada: só MASTER aprova PPR/etapa final de RH).
+  const podeAprovarFinal = user.role === 'MASTER';
 
   // O gestor pode ter indicadores próprios (ver "Meus Indicadores"). Quando o
   // indicador pendente é dele mesmo, ele não pode se auto-aprovar — e como só
@@ -254,7 +267,7 @@ export default function AprovacoesPage() {
       combinaBusca(i) &&
       combinaDepartamento(i),
   );
-  const pendentesRH = isRHouAdmin
+  const pendentesRH = podeAprovarFinal
     ? indicators.filter((i) => i.status === 'AGUARDANDO_APROVACAO_RH' && combinaBusca(i) && combinaDepartamento(i))
     : [];
 
@@ -276,10 +289,11 @@ export default function AprovacoesPage() {
     );
 
   // Indicadores MENSAL prontos pra validação final — só depois que o período
-  // termina (ou todos os meses já foram aprovados pelo gestor) — e só
-  // RH/Admin ("controller") pode fazer essa validação.
+  // termina (ou todos os meses já foram aprovados pelo gestor) — e só MASTER
+  // ("controller") pode fazer essa validação (mesma exceção da aprovação
+  // final anual — ADMIN não participa dessa etapa).
   const hoje = mesAtual();
-  const pendentesValidacaoFinal = isRHouAdmin
+  const pendentesValidacaoFinal = podeAprovarFinal
     ? indicators.filter((i) => {
         if (i.periodicidade !== 'MENSAL') return false;
         if (i.status !== 'EM_ANDAMENTO' && i.status !== 'ATRASADO') return false;

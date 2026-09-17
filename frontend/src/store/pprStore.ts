@@ -21,7 +21,7 @@ interface PPRState {
   addFaixa: (input: NovaFaixaInput) => { ok: true } | { ok: false; error: string };
   updateFaixa: (id: string, input: NovaFaixaInput) => { ok: true } | { ok: false; error: string };
   deleteFaixa: (id: string) => void;
-  faixaPara: (role: Role, percentual: number) => PPRFaixa | undefined;
+  faixaPara: (role: Role, cargo: string | undefined, percentual: number) => PPRFaixa | undefined;
   // Substitui de uma vez todas as faixas de um cargo — usado pela edição em lote da
   // Tabela PPR, para evitar falsos positivos de sobreposição ao salvar várias faixas
   // editadas ao mesmo tempo (validar sequencialmente contra o estado antigo gera
@@ -136,8 +136,8 @@ export const usePPRStore = create<PPRState>()(
         return { ok: true };
       },
 
-      faixaPara: (role, percentual) => {
-        const grupo = roleParaGrupoPPR(role);
+      faixaPara: (role, cargo, percentual) => {
+        const grupo = roleParaGrupoPPR(role, cargo);
         if (!grupo) return undefined;
         const faixasCargo = get()
           .faixas.filter((f) => f.cargo === grupo)

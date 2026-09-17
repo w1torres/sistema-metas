@@ -1,18 +1,19 @@
 import * as repository from './repository.js';
 import * as usersRepository from '../users/repository.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { isGestorDepartamento, temAcessoAmplo } from '../../utils/roles.js';
 import type { AuthUser, Indicador, IndicadorStatus } from '../../types/index.js';
 import type { IndicadorFilters } from './repository.js';
 
 function canView(user: AuthUser, indicador: Indicador): boolean {
-  if (user.role === 'MASTER') return true;
-  if (user.role === 'GESTOR') return indicador.departamento_id === user.departamentoId;
+  if (temAcessoAmplo(user.role)) return true;
+  if (isGestorDepartamento(user.role)) return indicador.departamento_id === user.departamentoId;
   return indicador.usuario_responsavel_id === user.id;
 }
 
 function canManage(user: AuthUser, indicador: Indicador): boolean {
-  if (user.role === 'MASTER') return true;
-  if (user.role === 'GESTOR') return indicador.departamento_id === user.departamentoId;
+  if (temAcessoAmplo(user.role)) return true;
+  if (isGestorDepartamento(user.role)) return indicador.departamento_id === user.departamentoId;
   return false;
 }
 
@@ -30,7 +31,7 @@ export async function listIndicadores(
   if (user.role === 'COLABORADOR') {
     return repository.findMany({ ...filters, usuarioResponsavelId: user.id });
   }
-  if (user.role === 'GESTOR') {
+  if (isGestorDepartamento(user.role)) {
     return repository.findMany({ ...filters, departamentoId: user.departamentoId });
   }
   return repository.findMany(filters);
@@ -67,8 +68,8 @@ export async function createIndicador(user: AuthUser, input: CreateInput): Promi
   const responsavel = await usersRepository.findById(input.usuario_responsavel_id);
   if (!responsavel) throw ApiError.badRequest('Responsável não encontrado');
 
-  const departamentoId = user.role === 'GESTOR' ? user.departamentoId : input.departamento_id;
-  if (user.role === 'GESTOR' && responsavel.departamento_id !== user.departamentoId) {
+  const departamentoId = isGestorDepartamento(user.role) ? user.departamentoId : input.departamento_id;
+  if (isGestorDepartamento(user.role) && responsavel.departamento_id !== user.departamentoId) {
     throw ApiError.forbidden('Responsável fora do seu departamento');
   }
 
@@ -134,7 +135,7 @@ export async function reatribuirIndicador(
 
   const novoResponsavel = await usersRepository.findById(novoResponsavelId);
   if (!novoResponsavel) throw ApiError.badRequest('Novo responsável não encontrado');
-  if (user.role === 'GESTOR' && novoResponsavel.departamento_id !== user.departamentoId) {
+  if (isGestorDepartamento(user.role) && novoResponsavel.departamento_id !== user.departamentoId) {
     throw ApiError.forbidden('Novo responsável fora do seu departamento');
   }
 
@@ -221,10 +222,12 @@ export async function desfazerConclusao(user: AuthUser, id: string): Promise<Ind
   return atualizado;
 }
 
-// Fluxo de aprovação em 2 etapas: GESTOR aprova o 1º nível (AGUARDANDO_APROVACAO
-// -> AGUARDANDO_RH) e MASTER confirma o 2º nível (AGUARDANDO_RH -> CONCLUIDO).
-// Uma rejeição em qualquer etapa devolve para EM_ANDAMENTO. `observacao` é
-// sempre gravada em auditoria, aprovando ou rejeitando.
+// Fluxo de aprovação em 2 etapas: GERENTES/COORDENADORES_SUPERVISORES aprovam
+// o 1º nível (AGUARDANDO_APROVACAO -> AGUARDANDO_RH) e só MASTER confirma o
+// 2º nível (AGUARDANDO_RH -> CONCLUIDO) — ADMIN não participa desta etapa
+// final, por decisão de escopo (só MASTER aprova PPR/RH). Uma rejeição em
+// qualquer etapa devolve para EM_ANDAMENTO. `observacao` é sempre gravada em
+// auditoria, aprovando ou rejeitando.
 export async function aprovar(
   user: AuthUser,
   id: string,
@@ -233,7 +236,7 @@ export async function aprovar(
 ): Promise<Indicador> {
   const indicador = await requireVisible(user, id);
 
-  if (user.role === 'GESTOR') {
+  if (isGestorDepartamento(user.role)) {
     if (indicador.departamento_id !== user.departamentoId) throw ApiError.forbidden();
     requireStatus(indicador, ['AGUARDANDO_APROVACAO']);
 

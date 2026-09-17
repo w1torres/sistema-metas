@@ -12,15 +12,46 @@ export const ROLE_LABELS: Record<Role, string> = {
 // usada no seletor de cadastro.
 export const ROLE_OPTIONS: Role[] = ['MASTER', 'ADMIN', 'GERENTES', 'COORDENADORES_SUPERVISORES', 'COLABORADOR'];
 
+// Sinônimos aceitos na coluna "role" da importação em planilha — além dos
+// valores exatos do enum (Role), aceita os rótulos exibidos na tela e os
+// nomes dos grupos da Tabela de Múltiplos de PPR (ex.: "DEMAIS CARGOS" é como
+// o grupo do COLABORADOR aparece lá, mas o rótulo do perfil continua sendo
+// "Colaborador" no resto do app — ver utils/ppr.ts).
+export const ROLE_ALIASES: Record<string, Role> = {
+  MASTER: 'MASTER',
+  ADMIN: 'ADMIN',
+  ADMINISTRADOR: 'ADMIN',
+  GERENTES: 'GERENTES',
+  GERENTE: 'GERENTES',
+  COORDENADORES_SUPERVISORES: 'COORDENADORES_SUPERVISORES',
+  'COORDENADORES E SUPERVISORES': 'COORDENADORES_SUPERVISORES',
+  'COORDENADOR/SUPERVISOR': 'COORDENADORES_SUPERVISORES',
+  'COORDENADOR E SUPERVISOR': 'COORDENADORES_SUPERVISORES',
+  // A planilha pode trazer "Coordenador" e "Supervisor" como cargos
+  // separados — os dois caem no mesmo perfil COORDENADORES_SUPERVISORES
+  // (não existe um perfil só pra cada um).
+  COORDENADOR: 'COORDENADORES_SUPERVISORES',
+  COORDENADORES: 'COORDENADORES_SUPERVISORES',
+  SUPERVISOR: 'COORDENADORES_SUPERVISORES',
+  SUPERVISORES: 'COORDENADORES_SUPERVISORES',
+  COLABORADOR: 'COLABORADOR',
+  'DEMAIS CARGOS': 'COLABORADOR',
+};
+
 export const MANAGER_ROLES: Role[] = ['ADMIN', 'MASTER'];
 
-// Quem pode aprovar/rejeitar em algum estágio do fluxo de conclusão (ver AprovacoesPage)
-export const APPROVER_ROLES: Role[] = ['ADMIN', 'MASTER', 'GERENTES'];
+// Quem pode aprovar/rejeitar em algum estágio do fluxo de conclusão (ver
+// AprovacoesPage). COORDENADORES_SUPERVISORES só de fato aprova quando
+// `ehGestorDepartamento` abaixo confirma que ele lidera o departamento (sem
+// Gerente lá) — a página/rota trata o caso contrário como sem acesso.
+export const APPROVER_ROLES: Role[] = ['ADMIN', 'MASTER', 'GERENTES', 'COORDENADORES_SUPERVISORES'];
 
 // Coordenadores/Supervisores têm o mesmo nível de acesso que Colaborador —
-// só o múltiplo de PPR muda entre os dois (ver utils/ppr.ts). Usar esta
-// lista em qualquer verificação de RBAC/navegação que hoje checaria
-// só 'COLABORADOR'.
+// só o múltiplo de PPR muda entre os dois (ver utils/ppr.ts) — EXCETO
+// aprovação de departamento, onde ele assume o papel de GERENTES se o
+// departamento não tiver nenhum Gerente ativo (ver `ehGestorDepartamento`).
+// Usar esta lista em qualquer outra verificação de RBAC/navegação que hoje
+// checaria só 'COLABORADOR'.
 export const COLABORADOR_TIER_ROLES: Role[] = ['COLABORADOR', 'COORDENADORES_SUPERVISORES'];
 
 // Departamentos que um GERENTES aprova: o principal (departamento_id) mais
@@ -32,31 +63,56 @@ export function departamentosDoGestor(user: Pick<User, 'departamento_id' | 'depa
   return Array.from(new Set([user.departamento_id, ...(user.departamentosAdicionais ?? [])]));
 }
 
+// Um Coordenador/Supervisor assume a aprovação de 1º nível (mesmo papel de
+// GERENTES) só nos departamentos que não têm nenhum Gerente ativo — comum em
+// unidades regionais menores do organograma real importado, onde o
+// Coordenador/Supervisor é quem efetivamente lidera. Se o departamento já
+// tem um Gerente, o Coordenador/Supervisor de lá continua no mesmo nível de
+// acesso do Colaborador (decisão confirmada com o usuário).
+export function ehGestorDepartamento(
+  user: Pick<User, 'role' | 'departamento_id' | 'departamentosAdicionais'>,
+  todosUsuarios: Pick<User, 'ativo' | 'role' | 'departamento_id'>[],
+): boolean {
+  if (user.role === 'GERENTES') return true;
+  if (user.role !== 'COORDENADORES_SUPERVISORES') return false;
+  return departamentosDoGestor(user).some(
+    (deptId) => !todosUsuarios.some((u) => u.ativo && u.role === 'GERENTES' && u.departamento_id === deptId),
+  );
+}
+
+// Colunas do catálogo de indicadores (planilha de PPR por função/pilar) — o
+// responsável é vinculado por CPF a um usuário JÁ cadastrado (ver Usuários),
+// não é mais criado na hora: departamento/cargo do indicador vêm do cadastro
+// do próprio responsável.
 export const IMPORT_TEMPLATE_HEADERS = [
-  'nome_colaborador',
-  'email_colaborador',
-  'departamento',
-  'cargo',
-  'nome_indicador',
-  'peso',
-  'objetivo',
-  'safra',
+  'Pilar',
+  'Indicador / Meta',
+  'Descrição',
+  'Meta',
+  'Forma de Medição',
+  'Evidência Obrigatória',
+  'Tabela de Atingimento (Redutor)',
+  'Peso',
+  'Observação / Sinalização',
+  'CPF',
 ];
 
+// "email" é opcional: quem ainda não tem email corporativo entra cadastrado
+// mas sem acesso, até alguém completar o cadastro depois. O CPF é
+// obrigatório — é ele que identifica o usuário nas duas situações: pra achar
+// e completar um cadastro sem email, e pra fazer upsert (uma linha com um
+// CPF já cadastrado ATUALIZA o usuário existente em vez de duplicar ou dar
+// erro — ver ImportUsuariosModal.tsx).
 export const IMPORT_USUARIOS_TEMPLATE_HEADERS = [
   'nome',
-  'email',
   'cpf',
-  'matricula',
+  'email',
   'departamento',
   'cargo',
   'role',
   'filial',
   'data_nascimento',
   'data_admissao',
-  'telefone',
-  'celular',
-  'endereco',
 ];
 
 export const STATUS_META: Record<IndicadorStatus, { label: string; badge: string; icon: string }> = {

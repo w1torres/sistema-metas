@@ -28,9 +28,12 @@ export type TipoAlteracao =
 
 export interface User {
   id: string;
-  email: string;
+  // Opcional: usuários importados sem email corporativo (ainda sem acesso)
+  // ficam identificados só pelo CPF até alguém completar o cadastro (editar
+  // e adicionar o email/Entra ID, ou vincular a uma credencial de banco de
+  // dados) — ver addUser/updateUser em userStore.ts.
+  email?: string;
   cpf?: string;
-  matricula?: string;
   nome: string;
   departamento_id: string;
   departamento: string;
@@ -41,9 +44,6 @@ export interface User {
   dataNascimento?: string;
   dataAdmissao?: string;
   filial?: string;
-  enderecoCompleto?: string;
-  telefone?: string;
-  celular?: string;
   // Só relevante para role GERENTES: departamentos além do `departamento_id`
   // (o "principal") que este gestor também aprova — ex.: gerente
   // administrativo que também responde por Compras, Estoque e Faturamento.

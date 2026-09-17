@@ -5,5 +5,5 @@ import * as controller from './controller.js';
 
 export const dashboardRouter = Router();
 
-dashboardRouter.use(authMiddleware, requireRole('MASTER', 'GESTOR'));
+dashboardRouter.use(authMiddleware, requireRole('MASTER', 'ADMIN', 'GERENTES', 'COORDENADORES_SUPERVISORES'));
 dashboardRouter.get('/stats', controller.stats);
