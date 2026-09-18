@@ -8,10 +8,14 @@ import * as usersRepository from '../src/modules/users/repository.js';
 interface Fixtures {
   deptAdmId: string;
   deptTiId: string;
+  deptMarketingId: string;
   masterEmail: string;
   gestorAdmEmail: string;
   gestorTiEmail: string;
+  gestorMarketingEmail: string;
   colabAdmEmail: string;
+  colabAdmId: string;
+  colabTiId: string;
   indicadorId: string;
   corporativoEmail: string;
   comSenhaEmail: string;
@@ -29,6 +33,8 @@ beforeAll(async () => {
   await db.migrate.latest();
 
   // Limpa em ordem segura de FK antes de inserir os fixtures deste teste.
+  await db('bonificacao_colaboradores').del();
+  await db('bonificacoes').del();
   await db('indicador_updates').del();
   await db('attachments').del();
   await db('indicadores').del();
@@ -41,6 +47,7 @@ beforeAll(async () => {
 
   const [deptAdm] = await db('departamentos').insert({ nome: 'ADMINISTRATIVO', descricao: 'Teste' }).returning('id');
   const [deptTi] = await db('departamentos').insert({ nome: 'TECNOLOGIA', descricao: 'Teste' }).returning('id');
+  const [deptMarketing] = await db('departamentos').insert({ nome: 'MARKETING', descricao: 'Teste' }).returning('id');
 
   const [master] = await db('users')
     .insert({ email: 'master@teste.com', nome: 'Master Teste', departamento_id: deptAdm.id, role: 'MASTER' })
@@ -51,6 +58,9 @@ beforeAll(async () => {
   const [gestorTi] = await db('users')
     .insert({ email: 'gestor.ti@teste.com', nome: 'Gestor TI', departamento_id: deptTi.id, role: 'GERENTES' })
     .returning('id');
+  const [gestorMarketing] = await db('users')
+    .insert({ email: 'gestor.marketing@teste.com', nome: 'Gestor Marketing', departamento_id: deptMarketing.id, role: 'GERENTES' })
+    .returning('id');
   const [colabAdm] = await db('users')
     .insert({
       email: 'colab.adm@teste.com',
@@ -58,6 +68,18 @@ beforeAll(async () => {
       departamento_id: deptAdm.id,
       role: 'COLABORADOR',
       cpf: '111.222.333-96',
+      // Admitido em 2020: elegível pra bonificação de qualquer mês de 2026
+      // (regra: admitido até 31/12 do ano anterior) — ver describe('Bonificação').
+      data_admissao: '2020-01-01',
+    })
+    .returning('id');
+  const [colabTi] = await db('users')
+    .insert({
+      email: 'colab.ti@teste.com',
+      nome: 'Colaborador TI',
+      departamento_id: deptTi.id,
+      role: 'COLABORADOR',
+      data_admissao: '2020-01-01',
     })
     .returning('id');
 
@@ -100,10 +122,14 @@ beforeAll(async () => {
   fx = {
     deptAdmId: deptAdm.id,
     deptTiId: deptTi.id,
+    deptMarketingId: deptMarketing.id,
     masterEmail: 'master@teste.com',
     gestorAdmEmail: 'gestor.adm@teste.com',
     gestorTiEmail: 'gestor.ti@teste.com',
+    gestorMarketingEmail: 'gestor.marketing@teste.com',
     colabAdmEmail: 'colab.adm@teste.com',
+    colabAdmId: colabAdm.id,
+    colabTiId: colabTi.id,
     indicadorId: indicador.id,
     corporativoEmail: 'colaborador@corp.teste.com',
     comSenhaEmail: 'comsenha@teste.com',
@@ -111,6 +137,7 @@ beforeAll(async () => {
   };
   void master;
   void gestorTi;
+  void gestorMarketing;
 });
 
 afterAll(async () => {
@@ -322,5 +349,129 @@ describe('Exclusão de usuário', () => {
       .delete(`/api/users/${master.id}`)
       .set('Authorization', `Bearer ${masterToken}`);
     expect(res.status).toBe(400);
+  });
+});
+
+describe('Bonificação', () => {
+  it('ao criar, popula automaticamente os colaboradores elegíveis (ativos, admitidos até 31/12 do ano anterior, exceto MASTER/ADMIN) com nota padrão 100', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+
+    const create = await request(app)
+      .post('/api/bonificacoes')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ fornecedor: 'Fornecedor Teste', valor_total: 1000, mes_referencia: '2026-09' });
+    expect(create.status).toBe(201);
+    const bonificacaoId = create.body.data.id;
+
+    // colabAdm/colabTi foram admitidos em 2020 (elegíveis pra qualquer
+    // bonificação de 2026); master/gestores não têm data_admissao setada
+    // (inelegíveis por dado incompleto) e MASTER é excluído por role de
+    // qualquer forma — ver findElegiveisParaBonificacao.
+    const participantes = create.body.data.participantes as Array<{
+      usuario_id: string;
+      percentual_nota: number;
+      valor_por_colaborador: number;
+      valor_recebido: number;
+    }>;
+    expect(participantes).toHaveLength(2);
+    const colabAdmParticipante = participantes.find((p) => p.usuario_id === fx.colabAdmId)!;
+    const colabTiParticipante = participantes.find((p) => p.usuario_id === fx.colabTiId)!;
+    // valor_total 1000 / 2 colaboradores = 500 por colaborador; nota padrão 100 -> recebe tudo.
+    expect(colabAdmParticipante.percentual_nota).toBe(100);
+    expect(colabAdmParticipante.valor_por_colaborador).toBe(500);
+    expect(colabAdmParticipante.valor_recebido).toBe(500);
+    expect(colabTiParticipante.valor_recebido).toBe(500);
+
+    // Ajusta a nota de colabTi pra 50 -> recebe metade.
+    const atualizarNota = await request(app)
+      .patch(`/api/bonificacoes/${bonificacaoId}/participantes/${fx.colabTiId}`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ percentual_nota: 50 });
+    expect(atualizarNota.status).toBe(200);
+    const colabTiAtualizado = atualizarNota.body.data.find((p: { usuario_id: string }) => p.usuario_id === fx.colabTiId);
+    expect(colabTiAtualizado.valor_recebido).toBe(250);
+
+    const { token: colabTiToken } = await login('colab.ti@teste.com');
+    const minhas = await request(app)
+      .get('/api/bonificacoes/minhas')
+      .set('Authorization', `Bearer ${colabTiToken}`);
+    expect(minhas.status).toBe(200);
+    expect(minhas.body.data).toHaveLength(1);
+    expect(minhas.body.data[0].valor_recebido).toBe(250);
+  });
+
+  it('não inclui um colaborador admitido depois da data-limite (31/12 do ano anterior)', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const [recente] = await db('users')
+      .insert({
+        email: 'colab.recente@teste.com',
+        nome: 'Colaborador Recente',
+        departamento_id: fx.deptAdmId,
+        role: 'COLABORADOR',
+        // Admitido em janeiro/2026 — pra uma bonificação de 2026, a
+        // data-limite é 2025-12-31, então este colaborador NÃO é elegível.
+        data_admissao: '2026-01-15',
+      })
+      .returning('id');
+
+    const create = await request(app)
+      .post('/api/bonificacoes')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ fornecedor: 'Fornecedor Admissao Recente', valor_total: 900, mes_referencia: '2026-09' });
+
+    const usuarioIds = (create.body.data.participantes as Array<{ usuario_id: string }>).map((p) => p.usuario_id);
+    expect(usuarioIds).not.toContain(recente.id);
+  });
+
+  it('gerente de um departamento comum não pode gerenciar bonificação', async () => {
+    const { token: gestorAdmToken } = await login(fx.gestorAdmEmail);
+    const res = await request(app)
+      .get('/api/bonificacoes')
+      .set('Authorization', `Bearer ${gestorAdmToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('gerente do departamento de Marketing pode gerenciar bonificação', async () => {
+    const { token: gestorMarketingToken } = await login(fx.gestorMarketingEmail);
+    const create = await request(app)
+      .post('/api/bonificacoes')
+      .set('Authorization', `Bearer ${gestorMarketingToken}`)
+      .send({ fornecedor: 'Fornecedor Marketing', valor_total: 300, mes_referencia: '2026-09' });
+    expect(create.status).toBe(201);
+  });
+
+  it('colaborador sem acesso amplo não consegue listar todas as bonificações', async () => {
+    const { token: colabToken } = await login(fx.colabAdmEmail);
+    const res = await request(app)
+      .get('/api/bonificacoes')
+      .set('Authorization', `Bearer ${colabToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('marca e desmarca a bonificação como paga', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const create = await request(app)
+      .post('/api/bonificacoes')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ fornecedor: 'Fornecedor Pagamento', valor_total: 500, mes_referencia: '2026-09' });
+    const bonificacaoId = create.body.data.id;
+    expect(create.body.data.paga).toBe(false);
+    expect(create.body.data.pago_em).toBeNull();
+
+    const marcarPaga = await request(app)
+      .patch(`/api/bonificacoes/${bonificacaoId}/pagamento`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ paga: true });
+    expect(marcarPaga.status).toBe(200);
+    expect(marcarPaga.body.data.paga).toBe(true);
+    expect(marcarPaga.body.data.pago_em).not.toBeNull();
+
+    const desmarcarPaga = await request(app)
+      .patch(`/api/bonificacoes/${bonificacaoId}/pagamento`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ paga: false });
+    expect(desmarcarPaga.status).toBe(200);
+    expect(desmarcarPaga.body.data.paga).toBe(false);
+    expect(desmarcarPaga.body.data.pago_em).toBeNull();
   });
 });

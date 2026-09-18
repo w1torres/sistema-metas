@@ -9,6 +9,7 @@ import RelatoriosPage from './components/reports/RelatoriosPage';
 import UsuariosPage from './components/admin/UsuariosPage';
 import PPRPage from './components/ppr/PPRPage';
 import AprovacoesPage from './components/aprovacoes/AprovacoesPage';
+import BonificacaoPage from './components/bonificacao/BonificacaoPage';
 import { useAuthStore } from './store/authStore';
 import { APPROVER_ROLES, COLABORADOR_TIER_ROLES, MANAGER_ROLES } from './utils/constants';
 
@@ -83,6 +84,20 @@ export default function App() {
           <ProtectedRoute roles={['MASTER', 'ADMIN']}>
             <MainLayout>
               <UsuariosPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bonificacao"
+        element={
+          // Portão grosso aqui (qualquer GERENTES) — a exigência fina
+          // ("só o de Marketing") é checada dentro da própria página, mesmo
+          // padrão de ehGestorDepartamento usado em Aprovações/Sidebar,
+          // porque ProtectedRoute só sabe checar role, não departamento.
+          <ProtectedRoute roles={['MASTER', 'ADMIN', 'GERENTES']}>
+            <MainLayout>
+              <BonificacaoPage />
             </MainLayout>
           </ProtectedRoute>
         }

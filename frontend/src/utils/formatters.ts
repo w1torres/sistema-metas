@@ -20,6 +20,10 @@ export function formatPercent(value: number): string {
   return `${Math.round(value)}%`;
 }
 
+export function formatCurrency(value: number): string {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
 // Mascara progressivamente enquanto o usuário digita: "12345678900" -> "123.456.789-00".
 export function formatCPF(valor: string): string {
   const digitos = valor.replace(/\D/g, '').slice(0, 11);

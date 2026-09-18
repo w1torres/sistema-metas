@@ -80,6 +80,18 @@ export function ehGestorDepartamento(
   );
 }
 
+// Gerencia Bonificação (cadastrar fornecedor/valor/participantes): MASTER
+// sempre, ou o GERENTES do departamento MARKETING — não existe um role
+// dedicado "GERENTE_MARKETING" no enum, então a checagem é por departamento
+// (mesmo padrão de "Gerente de RH" tratado à parte em utils/ppr.ts).
+export function ehGerenteDeMarketing(user: Pick<User, 'role' | 'departamento'>): boolean {
+  return user.role === 'GERENTES' && user.departamento.toUpperCase() === 'MARKETING';
+}
+
+export function podeGerenciarBonificacao(user: Pick<User, 'role' | 'departamento'>): boolean {
+  return user.role === 'MASTER' || user.role === 'ADMIN' || ehGerenteDeMarketing(user);
+}
+
 // Colunas do catálogo de indicadores (planilha de PPR por função/pilar) — o
 // responsável é vinculado por CPF a um usuário JÁ cadastrado (ver Usuários),
 // não é mais criado na hora: departamento/cargo do indicador vêm do cadastro

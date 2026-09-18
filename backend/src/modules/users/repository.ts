@@ -51,6 +51,19 @@ export async function findByCpf(cpf: string): Promise<User | undefined> {
   return baseQuery().whereRaw(`regexp_replace(users.cpf, '\\D', '', 'g') = ?`, [digitos]).first();
 }
 
+// Elegibilidade de Bonificação (ver bonificacoes/service.ts): ativo, admitido
+// até a data-limite informada (ex.: 31/12 do ano anterior ao mês de
+// referência da bonificação), excluindo MASTER/ADMIN (contas de
+// administração do sistema, não colaboradores de fato).
+export async function findElegiveisParaBonificacao(dataLimiteAdmissao: string): Promise<User[]> {
+  return baseQuery()
+    .where('users.ativo', true)
+    .whereNotIn('users.role', ['MASTER', 'ADMIN'])
+    .whereNotNull('users.data_admissao')
+    .andWhere('users.data_admissao', '<=', dataLimiteAdmissao)
+    .orderBy('users.nome');
+}
+
 interface CreateUserInput {
   email?: string | null;
   nome: string;

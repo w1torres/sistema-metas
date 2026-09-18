@@ -1,4 +1,4 @@
-import type { Departamento, User } from '../types';
+import type { Bonificacao, BonificacaoParticipante, Departamento, MinhaBonificacao, User } from '../types';
 
 // Formato exato de app/src/types/index.ts (backend) — nomes de campo em
 // snake_case/português vindos do banco, alguns diferentes do shape do
@@ -61,4 +61,84 @@ export interface BackendCargo {
   nivel: string | null;
   trilha_id: string | null;
   grupo_ppr: string | null;
+}
+
+export interface BackendBonificacao {
+  id: string;
+  fornecedor: string;
+  valor_total: number;
+  mes_referencia: string;
+  criado_por: string;
+  criado_por_nome: string;
+  total_colaboradores: number;
+  valor_por_colaborador: number;
+  paga: boolean;
+  pago_em: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  participantes?: BackendBonificacaoParticipante[];
+}
+
+export function mapBonificacao(b: BackendBonificacao): Bonificacao {
+  return {
+    id: b.id,
+    fornecedor: b.fornecedor,
+    valorTotal: b.valor_total,
+    mesReferencia: b.mes_referencia,
+    criadoPor: b.criado_por,
+    criadoPorNome: b.criado_por_nome,
+    totalColaboradores: b.total_colaboradores,
+    valorPorColaborador: b.valor_por_colaborador,
+    paga: b.paga,
+    pagoEm: b.pago_em,
+    criadoEm: b.criado_em,
+    atualizadoEm: b.atualizado_em,
+    participantes: b.participantes?.map(mapBonificacaoParticipante),
+  };
+}
+
+export interface BackendBonificacaoParticipante {
+  id: string;
+  bonificacao_id: string;
+  usuario_id: string;
+  usuario_nome: string;
+  percentual_nota: number;
+  valor_por_colaborador: number;
+  valor_recebido: number;
+}
+
+export function mapBonificacaoParticipante(p: BackendBonificacaoParticipante): BonificacaoParticipante {
+  return {
+    id: p.id,
+    bonificacaoId: p.bonificacao_id,
+    usuarioId: p.usuario_id,
+    usuarioNome: p.usuario_nome,
+    percentualNota: p.percentual_nota,
+    valorPorColaborador: p.valor_por_colaborador,
+    valorRecebido: p.valor_recebido,
+  };
+}
+
+export interface BackendMinhaBonificacao {
+  id: string;
+  fornecedor: string;
+  valor_total: number;
+  mes_referencia: string;
+  percentual_nota: number;
+  total_colaboradores: number;
+  valor_por_colaborador: number;
+  valor_recebido: number;
+}
+
+export function mapMinhaBonificacao(b: BackendMinhaBonificacao): MinhaBonificacao {
+  return {
+    id: b.id,
+    fornecedor: b.fornecedor,
+    valorTotal: b.valor_total,
+    mesReferencia: b.mes_referencia,
+    percentualNota: b.percentual_nota,
+    totalColaboradores: b.total_colaboradores,
+    valorPorColaborador: b.valor_por_colaborador,
+    valorRecebido: b.valor_recebido,
+  };
 }

@@ -168,3 +168,46 @@ export interface Trilha {
   descricao: string;
   pilares: PilarPeso[];
 }
+
+// Bonificação por fornecedor: MASTER/gerente de Marketing cadastram o valor
+// total e os colaboradores participantes; cada um recebe
+// valorPorColaborador (= valorTotal / totalColaboradores) reduzido pelo seu
+// percentualNota (nota de avaliação de desempenho) — ver utils/bonificacao.ts.
+export interface Bonificacao {
+  id: string;
+  fornecedor: string;
+  valorTotal: number;
+  mesReferencia: string; // 'YYYY-MM'
+  criadoPor: string;
+  criadoPorNome: string;
+  totalColaboradores: number;
+  valorPorColaborador: number;
+  paga: boolean;
+  pagoEm: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+  // Presente na listagem (GET /bonificacoes) pra a tela de gestão mostrar
+  // nome/nota/valor a receber de cada colaborador sem um clique extra.
+  participantes?: BonificacaoParticipante[];
+}
+
+export interface BonificacaoParticipante {
+  id: string;
+  bonificacaoId: string;
+  usuarioId: string;
+  usuarioNome: string;
+  percentualNota: number;
+  valorPorColaborador: number;
+  valorRecebido: number;
+}
+
+export interface MinhaBonificacao {
+  id: string;
+  fornecedor: string;
+  valorTotal: number;
+  mesReferencia: string;
+  percentualNota: number;
+  totalColaboradores: number;
+  valorPorColaborador: number;
+  valorRecebido: number;
+}

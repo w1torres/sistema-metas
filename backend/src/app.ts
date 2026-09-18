@@ -12,6 +12,7 @@ import { trilhasRouter } from './modules/trilhas/routes.js';
 import { pprRouter } from './modules/ppr/routes.js';
 import { indicatorsRouter } from './modules/indicators/routes.js';
 import { dashboardRouter } from './modules/dashboard/routes.js';
+import { bonificacoesRouter } from './modules/bonificacoes/routes.js';
 
 export const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/trilhas', trilhasRouter);
 app.use('/api/ppr', pprRouter);
 app.use('/api/indicators', indicatorsRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/bonificacoes', bonificacoesRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ success: false, error: 'Rota não encontrada' });

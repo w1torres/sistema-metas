@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import SummaryCard from './SummaryCard';
 import MeuPPRCard from '../ppr/MeuPPRCard';
+import MinhaBonificacaoCard from '../bonificacao/MinhaBonificacaoCard';
 import EvolucaoIndicadoresChart from '../charts/EvolucaoIndicadoresChart';
 import IndicadorCard from '../indicators/IndicadorCard';
 import AnexarDocumentoModal from '../indicators/AnexarDocumentoModal';
@@ -94,6 +95,8 @@ export default function DashboardColaborador() {
       </div>
 
       <MeuPPRCard cargo={user.cargo} role={user.role} indicadores={meusIndicadores} />
+
+      <MinhaBonificacaoCard />
 
       <EvolucaoIndicadoresChart indicadores={meusIndicadores} />
 

@@ -3,7 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import { useUserStore } from '../../store/userStore';
-import { COLABORADOR_TIER_ROLES, departamentosDoGestor, ehGestorDepartamento } from '../../utils/constants';
+import {
+  COLABORADOR_TIER_ROLES,
+  departamentosDoGestor,
+  ehGerenteDeMarketing,
+  ehGestorDepartamento,
+} from '../../utils/constants';
 
 interface NavItem {
   label: string;
@@ -50,6 +55,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     items = [
       { label: 'Meus Indicadores', path: '/dashboard' },
       { label: 'Aprovações', path: '/aprovacoes', badge: pendentesAprovacao },
+      // Gerente de Marketing também gerencia a Bonificação (fornecedor/valor/
+      // participantes) — ver ehGerenteDeMarketing e BonificacaoPage.
+      ...(ehGerenteDeMarketing(user) ? [{ label: 'Bonificação', path: '/bonificacao' }] : []),
     ];
   } else if (COLABORADOR_TIER_ROLES.includes(user.role)) {
     items = [{ label: 'Meus Indicadores', path: '/dashboard' }];
@@ -61,6 +69,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       { label: 'Relatórios', path: '/relatorios' },
       { label: 'Tabelas', path: '/ppr' },
       { label: 'Usuários', path: '/usuarios' },
+      { label: 'Bonificação', path: '/bonificacao' },
     ];
   } else {
     items = [
@@ -70,6 +79,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       { label: 'Relatórios', path: '/relatorios' },
       { label: 'Tabelas', path: '/ppr' },
       { label: 'Usuários', path: '/usuarios' },
+      { label: 'Bonificação', path: '/bonificacao' },
     ];
   }
 
