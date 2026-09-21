@@ -1,4 +1,4 @@
-import { PublicClientApplication } from '@azure/msal-browser';
+import { BrowserAuthError, PublicClientApplication } from '@azure/msal-browser';
 
 const clientId = import.meta.env.VITE_MSAL_CLIENT_ID ?? '';
 const tenantId = import.meta.env.VITE_MSAL_TENANT_ID ?? '';
@@ -48,6 +48,27 @@ export async function loginComEntraId(): Promise<string> {
     throw new Error('Login com Microsoft não configurado (VITE_MSAL_CLIENT_ID/VITE_MSAL_TENANT_ID ausentes).');
   }
   const msal = await getMsalInstance();
-  const result = await msal.loginPopup({ scopes: ['openid', 'profile', 'email'] });
-  return result.idToken;
+  const request = { scopes: ['openid', 'profile', 'email'] };
+  try {
+    return (await msal.loginPopup(request)).idToken;
+  } catch (err) {
+    // Um popup fechado/com erro antes (ex.: redirect URI ainda não cadastrado)
+    // pode deixar a flag "interaction in progress" presa no sessionStorage e
+    // bloquear qualquer nova tentativa até fechar a aba. Limpa e tenta uma vez.
+    if (err instanceof BrowserAuthError && err.errorCode === 'interaction_in_progress') {
+      limparInteracaoPendente();
+      return (await msal.loginPopup(request)).idToken;
+    }
+    throw err;
+  }
+}
+
+function limparInteracaoPendente(): void {
+  try {
+    Object.keys(sessionStorage)
+      .filter((k) => k.includes('interaction.status'))
+      .forEach((k) => sessionStorage.removeItem(k));
+  } catch {
+    // sessionStorage indisponível — nada a limpar
+  }
 }
