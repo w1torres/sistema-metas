@@ -2,7 +2,9 @@ import { BrowserAuthError, PublicClientApplication } from '@azure/msal-browser';
 
 const clientId = import.meta.env.VITE_MSAL_CLIENT_ID ?? '';
 const tenantId = import.meta.env.VITE_MSAL_TENANT_ID ?? '';
-const redirectUri = import.meta.env.VITE_MSAL_REDIRECT_URI ?? window.location.origin;
+// Página dedicada (redirect.html), não a raiz do app: o popup precisa carregar
+// só o redirect bridge do MSAL — ver src/redirect.ts.
+const redirectUri = import.meta.env.VITE_MSAL_REDIRECT_URI ?? `${window.location.origin}/redirect.html`;
 
 const corporateEmailDomains = (import.meta.env.VITE_CORPORATE_EMAIL_DOMAINS ?? '')
   .split(',')
