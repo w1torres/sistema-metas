@@ -34,11 +34,6 @@ interface BonificacaoState {
   updateBonificacao: (id: string, input: Partial<BonificacaoInput>) => Promise<Bonificacao>;
   removeBonificacao: (id: string) => Promise<void>;
   setPaga: (id: string, paga: boolean) => Promise<Bonificacao>;
-  // Participantes nunca são escolhidos na mão — são sempre recalculados a
-  // partir da regra de elegibilidade (ativo, admitido até 31/12 do ano
-  // anterior, exceto MASTER/ADMIN). Útil pra bonificações antigas ou depois
-  // de um colaborador novo ser cadastrado.
-  sincronizarParticipantes: (id: string) => Promise<BonificacaoParticipante[]>;
   atualizarNotaParticipante: (
     id: string,
     usuarioId: string,
@@ -107,20 +102,6 @@ export const useBonificacaoStore = create<BonificacaoState>((set) => ({
     const mapeada = mapBonificacao(atualizada);
     set((state) => ({ bonificacoes: atualizarBonificacaoNoEstado(state.bonificacoes, id, mapeada) }));
     return mapeada;
-  },
-
-  sincronizarParticipantes: async (id) => {
-    const data = await apiClient.put<BackendBonificacaoParticipante[]>(`/bonificacoes/${id}/participantes`);
-    const participantes = data.map(mapBonificacaoParticipante);
-    set((state) => ({
-      bonificacoes: state.bonificacoes.map((b) => {
-        if (b.id !== id) return b;
-        const totalColaboradores = participantes.length;
-        const valorPorColaborador = totalColaboradores > 0 ? b.valorTotal / totalColaboradores : 0;
-        return { ...b, participantes, totalColaboradores, valorPorColaborador };
-      }),
-    }));
-    return participantes;
   },
 
   atualizarNotaParticipante: async (id, usuarioId, percentualNota) => {

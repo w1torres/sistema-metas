@@ -19,6 +19,7 @@ export interface BonificacaoParticipante {
   bonificacao_id: string;
   usuario_id: string;
   usuario_nome: string;
+  data_admissao: string | null;
   percentual_nota: number;
   criado_em: string;
   atualizado_em: string;
@@ -59,7 +60,12 @@ function mapBonificacao(row: any): Bonificacao {
 function baseQuery() {
   return db('bonificacoes')
     .join('users', 'users.id', 'bonificacoes.criado_por')
-    .leftJoin('bonificacao_colaboradores as bc', 'bc.bonificacao_id', 'bonificacoes.id')
+    // Só colaboradores ativos entram no total (e, portanto, no valor por colaborador).
+    .leftJoin(
+      db.raw(
+        '(bonificacao_colaboradores bc JOIN users uc ON uc.id = bc.usuario_id AND uc.ativo = true) ON bc.bonificacao_id = bonificacoes.id',
+      ),
+    )
     .select([...BASE_COLUMNS, 'users.nome as criado_por_nome', db.raw('COUNT(bc.id)::int as total_colaboradores')])
     .groupBy(GROUP_BY_COLUMNS);
 }
@@ -113,11 +119,13 @@ export async function findParticipantes(bonificacaoId: string): Promise<Bonifica
       'bc.bonificacao_id',
       'bc.usuario_id',
       'users.nome as usuario_nome',
+      db.raw("to_char(users.data_admissao, 'YYYY-MM-DD') as data_admissao"),
       'bc.percentual_nota',
       'bc.criado_em',
       'bc.atualizado_em',
     ])
     .where('bc.bonificacao_id', bonificacaoId)
+    .where('users.ativo', true)
     .orderBy('users.nome');
   return rows.map((row) => ({ ...row, percentual_nota: Number(row.percentual_nota) }));
 }
@@ -173,6 +181,13 @@ export async function updateParticipanteNota(
   return linhas > 0;
 }
 
+/** Aplica a nota a todas as bonificações em que o colaborador participa; devolve quantas linhas foram atualizadas. */
+export async function updateNotaPorUsuario(usuarioId: string, percentualNota: number): Promise<number> {
+  return db('bonificacao_colaboradores')
+    .where({ usuario_id: usuarioId })
+    .update({ percentual_nota: percentualNota, atualizado_em: db.fn.now() });
+}
+
 export async function findMinhas(usuarioId: string): Promise<MinhaBonificacao[]> {
   const rows = await db('bonificacao_colaboradores as bc')
     .join('bonificacoes as b', 'b.id', 'bc.bonificacao_id')
@@ -183,7 +198,7 @@ export async function findMinhas(usuarioId: string): Promise<MinhaBonificacao[]>
       'b.mes_referencia',
       'bc.percentual_nota',
       db.raw(
-        '(SELECT COUNT(*) FROM bonificacao_colaboradores bc2 WHERE bc2.bonificacao_id = b.id)::int as total_colaboradores',
+        '(SELECT COUNT(*) FROM bonificacao_colaboradores bc2 JOIN users u2 ON u2.id = bc2.usuario_id WHERE bc2.bonificacao_id = b.id AND u2.ativo = true)::int as total_colaboradores',
       ),
     ])
     .where('bc.usuario_id', usuarioId)

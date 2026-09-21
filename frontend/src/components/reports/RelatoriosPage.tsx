@@ -3,6 +3,7 @@ import { useIndicatorStore } from '../../store/indicatorStore';
 import { useUserStore } from '../../store/userStore';
 import { usePPRStore } from '../../store/pprStore';
 import BasicCharts from '../charts/BasicCharts';
+import NotasBonificacaoCard from '../bonificacao/NotasBonificacaoCard';
 import Button from '../common/Button';
 import { Select } from '../common/Input';
 import { formatPercent } from '../../utils/formatters';
@@ -207,6 +208,8 @@ export default function RelatoriosPage() {
           </table>
         </div>
       </div>
+
+      <NotasBonificacaoCard titulo="Avaliação de Desempenho e Bonificação por Colaborador" exportavel />
     </div>
   );
 }

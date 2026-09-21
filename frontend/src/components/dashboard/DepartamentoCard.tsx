@@ -10,7 +10,7 @@ interface DepartamentoCardProps {
 
 export default function DepartamentoCard({ nome, total, pendentes, taxaConclusao, onVerColaboradores }: DepartamentoCardProps) {
   return (
-    <div className="flex min-w-[220px] flex-col gap-3 rounded-lg border border-border bg-white p-4 shadow-sm">
+    <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-white p-4 shadow-sm">
       <p className="font-semibold text-ink">{nome}</p>
       <div className="flex flex-col gap-1 text-sm text-secondary">
         <p>

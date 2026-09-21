@@ -102,6 +102,7 @@ export interface BackendBonificacaoParticipante {
   bonificacao_id: string;
   usuario_id: string;
   usuario_nome: string;
+  data_admissao: string | null;
   percentual_nota: number;
   valor_por_colaborador: number;
   valor_recebido: number;
@@ -113,6 +114,7 @@ export function mapBonificacaoParticipante(p: BackendBonificacaoParticipante): B
     bonificacaoId: p.bonificacao_id,
     usuarioId: p.usuario_id,
     usuarioNome: p.usuario_nome,
+    dataAdmissao: p.data_admissao,
     percentualNota: p.percentual_nota,
     valorPorColaborador: p.valor_por_colaborador,
     valorRecebido: p.valor_recebido,

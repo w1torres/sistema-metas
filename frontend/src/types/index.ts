@@ -196,6 +196,7 @@ export interface BonificacaoParticipante {
   bonificacaoId: string;
   usuarioId: string;
   usuarioNome: string;
+  dataAdmissao: string | null;
   percentualNota: number;
   valorPorColaborador: number;
   valorRecebido: number;

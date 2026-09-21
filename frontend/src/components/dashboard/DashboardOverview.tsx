@@ -112,7 +112,7 @@ export default function DashboardOverview() {
 
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-ink">Departamentos</h2>
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        <div className="grid max-h-96 grid-cols-1 gap-4 overflow-y-auto pr-2 sm:grid-cols-2 lg:grid-cols-4">
           {departments.map((dept) => {
             const doDept = indicators.filter((i) => i.departamento_id === dept.id);
             const totalDept = doDept.length;

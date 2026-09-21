@@ -31,6 +31,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}/api${path}`, { ...options, headers });
+  // 204 No Content (ex.: DELETE) não tem corpo — é sucesso, não erro.
+  if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => null);
 
   if (!res.ok || !body?.success) {

@@ -3,15 +3,17 @@ import toast from 'react-hot-toast';
 import { useBonificacaoStore } from '../../store/bonificacaoStore';
 import { useAuthStore } from '../../store/authStore';
 import BonificacaoModal from './BonificacaoModal';
+import ImportNotasModal from './ImportNotasModal';
 import Button from '../common/Button';
 import ConfirmModal from '../common/ConfirmModal';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatDate } from '../../utils/formatters';
 import { podeGerenciarBonificacao } from '../../utils/constants';
 import type { Bonificacao } from '../../types';
 
 interface ResumoColaborador {
   usuarioId: string;
   usuarioNome: string;
+  dataAdmissao: string | null;
   totalRecebido: number;
   porFornecedor: { bonificacaoId: string; fornecedor: string; percentualNota: number; valorRecebido: number }[];
 }
@@ -38,6 +40,7 @@ function agregarPorColaborador(bonificacoes: Bonificacao[]): ResumoColaborador[]
         porUsuario.set(participante.usuarioId, {
           usuarioId: participante.usuarioId,
           usuarioNome: participante.usuarioNome,
+          dataAdmissao: participante.dataAdmissao,
           totalRecebido: participante.valorRecebido,
           porFornecedor: [entrada],
         });
@@ -64,14 +67,13 @@ export default function BonificacaoPage() {
   const fetchBonificacoes = useBonificacaoStore((s) => s.fetchBonificacoes);
   const removeBonificacao = useBonificacaoStore((s) => s.removeBonificacao);
   const setPaga = useBonificacaoStore((s) => s.setPaga);
-  const sincronizarParticipantes = useBonificacaoStore((s) => s.sincronizarParticipantes);
   const atualizarNotaParticipante = useBonificacaoStore((s) => s.atualizarNotaParticipante);
 
   const [criando, setCriando] = useState(false);
+  const [importandoNotas, setImportandoNotas] = useState(false);
   const [editando, setEditando] = useState<Bonificacao | null>(null);
   const [excluindo, setExcluindo] = useState<Bonificacao | null>(null);
   const [alternandoPagaId, setAlternandoPagaId] = useState<string | null>(null);
-  const [sincronizandoId, setSincronizandoId] = useState<string | null>(null);
   const [salvandoNotaChave, setSalvandoNotaChave] = useState<string | null>(null);
 
   useEffect(() => {
@@ -113,18 +115,6 @@ export default function BonificacaoPage() {
     }
   }
 
-  async function handleSincronizar(bonificacao: Bonificacao) {
-    setSincronizandoId(bonificacao.id);
-    try {
-      await sincronizarParticipantes(bonificacao.id);
-      toast.success('Colaboradores elegíveis atualizados.');
-    } catch {
-      toast.error('Não foi possível atualizar os colaboradores.');
-    } finally {
-      setSincronizandoId(null);
-    }
-  }
-
   async function handleNotaChange(bonificacaoId: string, usuarioId: string, valor: string) {
     const percentual = Number(valor);
     if (Number.isNaN(percentual) || percentual < 0 || percentual > 100) return;
@@ -149,7 +139,12 @@ export default function BonificacaoPage() {
             automaticamente (ativos, admitidos até 31/12 do ano anterior).
           </p>
         </div>
-        <Button onClick={() => setCriando(true)}>Nova Bonificação</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setImportandoNotas(true)}>
+            Importar Notas
+          </Button>
+          <Button onClick={() => setCriando(true)}>Nova Bonificação</Button>
+        </div>
       </div>
 
       {bonificacoes.length === 0 ? (
@@ -202,14 +197,6 @@ export default function BonificacaoPage() {
                 >
                   {b.paga ? 'Marcar como Pendente' : 'Marcar como Paga'}
                 </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  loading={sincronizandoId === b.id}
-                  onClick={() => handleSincronizar(b)}
-                >
-                  Atualizar Colaboradores Elegíveis
-                </Button>
                 <Button variant="secondary" size="sm" onClick={() => setEditando(b)}>
                   Editar
                 </Button>
@@ -253,6 +240,9 @@ export default function BonificacaoPage() {
                         {i === 0 && (
                           <td className="py-1.5 align-top text-ink" rowSpan={r.porFornecedor.length}>
                             {r.usuarioNome}
+                            <span className="block text-xs text-secondary">
+                              Admissão: {formatDate(r.dataAdmissao)}
+                            </span>
                           </td>
                         )}
                         <td className="py-1.5 text-secondary">{f.fornecedor}</td>
@@ -291,6 +281,7 @@ export default function BonificacaoPage() {
         </div>
       )}
 
+      <ImportNotasModal isOpen={importandoNotas} onClose={() => setImportandoNotas(false)} />
       <BonificacaoModal isOpen={criando} onClose={() => setCriando(false)} bonificacao={null} />
       <BonificacaoModal isOpen={!!editando} onClose={() => setEditando(null)} bonificacao={editando} />
       <ConfirmModal

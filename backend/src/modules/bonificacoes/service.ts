@@ -195,6 +195,55 @@ export async function atualizarNotaParticipante(
   return resultado.participantes;
 }
 
+export interface ImportNotaErro {
+  linha: number;
+  cpf: string;
+  motivo: string;
+}
+
+/**
+ * Importa a nota da avaliação de desempenho por CPF. A nota é do colaborador
+ * (uma avaliação só), então vale para todas as bonificações em que ele
+ * participa. Cada linha é tratada isoladamente — uma inválida só entra em
+ * `erros`, não derruba o import inteiro.
+ */
+export async function importarNotas(
+  user: AuthUser,
+  notas: { cpf: string; percentual_nota: number }[],
+): Promise<{ atualizados: number; erros: ImportNotaErro[] }> {
+  await assertPodeGerenciar(user);
+  const erros: ImportNotaErro[] = [];
+  let atualizados = 0;
+
+  for (const [idx, item] of notas.entries()) {
+    const linha = idx + 2; // +1 cabeçalho, +1 base 1
+    // Excel guarda CPF como número e derruba zeros à esquerda — completa até 11 dígitos.
+    const digitos = item.cpf.replace(/\D/g, '');
+    const cpf = digitos && digitos.length < 11 ? digitos.padStart(11, '0') : digitos;
+    if (!cpf) {
+      erros.push({ linha, cpf: item.cpf, motivo: 'CPF é obrigatório' });
+      continue;
+    }
+    if (Number.isNaN(item.percentual_nota) || item.percentual_nota < 0 || item.percentual_nota > 100) {
+      erros.push({ linha, cpf: item.cpf, motivo: 'Nota deve estar entre 0 e 100' });
+      continue;
+    }
+    const usuario = await usersRepository.findByCpf(cpf);
+    if (!usuario) {
+      erros.push({ linha, cpf: item.cpf, motivo: 'CPF não encontrado nos usuários cadastrados' });
+      continue;
+    }
+    const linhasAtualizadas = await repository.updateNotaPorUsuario(usuario.id, item.percentual_nota);
+    if (linhasAtualizadas === 0) {
+      erros.push({ linha, cpf: item.cpf, motivo: `${usuario.nome} não participa de nenhuma bonificação` });
+      continue;
+    }
+    atualizados += 1;
+  }
+
+  return { atualizados, erros };
+}
+
 export async function listMinhasBonificacoes(user: AuthUser): Promise<MinhaBonificacaoComCalculo[]> {
   const minhas = await repository.findMinhas(user.id);
   return minhas.map((bonificacao) => {

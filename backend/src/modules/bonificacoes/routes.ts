@@ -15,6 +15,7 @@ bonificacoesRouter.get('/minhas', controller.listMinhas);
 // mais fina ("GERENTES só se for do departamento de Marketing") é
 // responsabilidade do service (assertPodeGerenciar), igual o padrão já
 // usado em indicators/service.ts para escopo por departamento.
+bonificacoesRouter.post('/notas/importar', requireRole('MASTER', 'ADMIN', 'GERENTES'), controller.importarNotas);
 bonificacoesRouter.get('/', requireRole('MASTER', 'ADMIN', 'GERENTES'), controller.list);
 bonificacoesRouter.post('/', requireRole('MASTER', 'ADMIN', 'GERENTES'), controller.create);
 bonificacoesRouter.get('/:id', requireRole('MASTER', 'ADMIN', 'GERENTES'), controller.getById);

@@ -448,6 +448,39 @@ describe('Bonificação', () => {
     expect(res.status).toBe(403);
   });
 
+  it('importa a nota da avaliação por CPF (com zero à esquerda perdido) e reporta erros por linha', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    await db('users').where({ id: fx.colabAdmId }).update({ cpf: '027.933.971-21' });
+
+    const create = await request(app)
+      .post('/api/bonificacoes')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ fornecedor: 'Fornecedor Import Nota', valor_total: 1000, mes_referencia: '2026-09' });
+    const bonificacaoId = create.body.data.id;
+
+    const res = await request(app)
+      .post('/api/bonificacoes/notas/importar')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({
+        notas: [
+          { cpf: '2793397121', percentual_nota: 90 }, // Excel perdeu o zero à esquerda
+          { cpf: '999.999.999-99', percentual_nota: 80 },
+          { cpf: '027.933.971-21', percentual_nota: 150 },
+        ],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.data.atualizados).toBe(1);
+    expect(res.body.data.erros).toHaveLength(2);
+
+    const detalhe = await request(app)
+      .get(`/api/bonificacoes/${bonificacaoId}`)
+      .set('Authorization', `Bearer ${masterToken}`);
+    const participante = detalhe.body.data.participantes.find(
+      (p: { usuario_id: string }) => p.usuario_id === fx.colabAdmId,
+    );
+    expect(participante.percentual_nota).toBe(90);
+  });
+
   it('marca e desmarca a bonificação como paga', async () => {
     const { token: masterToken } = await login(fx.masterEmail);
     const create = await request(app)

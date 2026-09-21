@@ -85,6 +85,22 @@ export async function atualizarNotaParticipante(req: Request, res: Response): Pr
   );
 }
 
+const importNotasSchema = Joi.object({
+  notas: Joi.array()
+    .items(Joi.object({ cpf: Joi.string().allow('').required(), percentual_nota: Joi.number().required() }))
+    .max(2000)
+    .required(),
+});
+
+export async function importarNotas(req: Request, res: Response): Promise<void> {
+  const { value, error } = importNotasSchema.validate(req.body);
+  if (error) {
+    res.status(400).json({ success: false, error: error.message });
+    return;
+  }
+  ok(res, await service.importarNotas(req.user!, value.notas));
+}
+
 export async function listMinhas(req: Request, res: Response): Promise<void> {
   ok(res, await service.listMinhasBonificacoes(req.user!));
 }
