@@ -1,4 +1,6 @@
-# Produção (VPS Hostinger). Uso: ./deploy-vm.sh (ou docker compose --env-file .env.production up -d --build)
+# Produção (VPS Hostinger). Sem nginx em container: o nginx nativo do servidor
+# (/etc/nginx/sites-available/sistema-metas.appstche.com.br) serve
+# /var/www/metas-adm e encaminha /api para a API em 127.0.0.1:3001. Uso: ./deploy-vm.sh (ou docker compose --env-file .env.production up -d --build)
 # O compose de desenvolvimento continua em backend/docker-compose.yml.
 services:
   postgres:
@@ -31,27 +33,13 @@ services:
       DB_HOST: postgres
       DB_PORT: "5432"
       STORAGE_LOCAL_PATH: /app/uploads
-    expose:
-      - "3001"
+    ports:
+      - "127.0.0.1:3001:3001"
     volumes:
       - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
-
-  nginx:
-    image: nginx:latest
-    container_name: metas-adm-nginx
-    restart: always
-    ports:
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /etc/ssl/rootify:/etc/ssl/rootify:ro
-      - ${WEB_ROOT:-/var/www/metas-adm}:/var/www/metas-adm:ro
-    depends_on:
-      - api
 
 volumes:
   postgres_data:
