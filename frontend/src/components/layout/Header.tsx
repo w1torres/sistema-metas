@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
+import { useDepartmentStore } from '../../store/departmentStore';
 import { ROLE_LABELS } from '../../utils/constants';
 import { initials } from '../../utils/formatters';
 import logo from '../../assets/favicon.png';
@@ -12,6 +13,9 @@ interface HeaderProps {
 export default function Header({ onToggleSidebar }: HeaderProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const departments = useDepartmentStore((s) => s.departments);
+  const nomeDepartamento =
+    user?.departamento || departments.find((d) => d.id === user?.departamento_id)?.nome || '';
 
   function handleLogout() {
     logout();
@@ -40,8 +44,8 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             <p className="text-sm font-medium text-ink">{user.nome}</p>
             <p className="text-xs text-secondary">
               {ROLE_LABELS[user.role]}
-              {user.role === 'GERENTES' && ` — ${user.departamento}`}
             </p>
+            {nomeDepartamento && <p className="text-xs text-secondary">{nomeDepartamento}</p>}
           </div>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
             {initials(user.nome)}

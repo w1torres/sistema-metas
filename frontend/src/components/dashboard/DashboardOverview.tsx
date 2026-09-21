@@ -10,7 +10,6 @@ import ColaboradoresModal, { type ColaboradorResumo } from './ColaboradoresModal
 import BasicCharts from '../charts/BasicCharts';
 import Button from '../common/Button';
 import { Select } from '../common/Input';
-import { calcularMediaPorColaborador } from '../../utils/ppr';
 import { getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
 import type { Indicador } from '../../types';
 
@@ -53,7 +52,6 @@ export default function DashboardOverview() {
   const concluidos = indicators.filter((i) => i.status === 'CONCLUIDO').length;
   const emAndamento = indicators.filter((i) => i.status === 'EM_ANDAMENTO').length;
   const atrasados = indicators.filter((i) => i.status === 'ATRASADO').length;
-  const taxaMedia = Math.round(calcularMediaPorColaborador(indicators));
 
   // DashboardOverview só é alcançado por ADMIN/MASTER (MANAGER_ROLES) — quem
   // é GERENTES ou nível colaborador cai em DashboardColaborador (App.tsx),
@@ -107,8 +105,6 @@ export default function DashboardOverview() {
         <SummaryCard label="Em Andamento" value={emAndamento} accentClassName="text-warning" />
         <SummaryCard label="Atrasados" value={atrasados} accentClassName="text-danger" />
       </div>
-
-      <SummaryCard label="Média de % Peso Concluído por Colaborador" value={`${taxaMedia}%`} />
 
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-ink">Departamentos</h2>
