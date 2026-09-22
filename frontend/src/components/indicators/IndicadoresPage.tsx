@@ -9,7 +9,7 @@ import HistoricoModal from './HistoricoModal';
 import ImportPlanilhaModal from './ImportPlanilhaModal';
 import Button from '../common/Button';
 import { Input, Select } from '../common/Input';
-import { PAGE_SIZE, STATUS_META, STATUS_OPTIONS } from '../../utils/constants';
+import { OPCOES_CARDS_POR_PAGINA, STATUS_META, STATUS_OPTIONS } from '../../utils/constants';
 import { downloadCSV, toCSV } from '../../utils/csv';
 import { getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
 import type { Indicador } from '../../types';
@@ -34,6 +34,7 @@ export default function IndicadoresPage() {
   const [safraId, setSafraId] = useState(getSafraAtual().id);
   const [busca, setBusca] = useState(searchParams.get('busca') ?? '');
   const [pagina, setPagina] = useState(1);
+  const [cardsPorPagina, setCardsPorPagina] = useState<number>(OPCOES_CARDS_POR_PAGINA[0]);
 
   const [editando, setEditando] = useState<Indicador | null>(null);
   const [criando, setCriando] = useState(false);
@@ -76,9 +77,14 @@ export default function IndicadoresPage() {
     return Array.from(porResponsavel.values()).sort((a, b) => a.responsavel.localeCompare(b.responsavel));
   }, [filtrados]);
 
-  const totalPaginas = Math.max(1, Math.ceil(grupos.length / PAGE_SIZE));
+  const totalPaginas = Math.max(1, Math.ceil(grupos.length / cardsPorPagina));
   const paginaAtual = Math.min(pagina, totalPaginas);
-  const gruposPaginados = grupos.slice((paginaAtual - 1) * PAGE_SIZE, paginaAtual * PAGE_SIZE);
+  const gruposPaginados = grupos.slice((paginaAtual - 1) * cardsPorPagina, paginaAtual * cardsPorPagina);
+
+  function handleCardsPorPaginaChange(value: string) {
+    setCardsPorPagina(Number(value));
+    setPagina(1);
+  }
 
   useEffect(() => {
     if (searchParams.get('busca')) setSearchParams({}, { replace: true });
@@ -202,24 +208,39 @@ export default function IndicadoresPage() {
             ))}
           </div>
 
-          {totalPaginas > 1 && (
-            <div className="flex items-center justify-center gap-3">
-              <Button variant="secondary" size="sm" disabled={paginaAtual === 1} onClick={() => setPagina((p) => p - 1)}>
-                Anterior
-              </Button>
-              <span className="text-sm text-secondary">
-                Página {paginaAtual} de {totalPaginas} ({grupos.length} colaboradores)
-              </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={paginaAtual === totalPaginas}
-                onClick={() => setPagina((p) => p + 1)}
-              >
-                Próxima
-              </Button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {totalPaginas > 1 && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={paginaAtual === 1}
+                  onClick={() => setPagina((p) => p - 1)}
+                >
+                  Anterior
+                </Button>
+                <span className="text-sm text-secondary">
+                  Página {paginaAtual} de {totalPaginas} ({grupos.length} colaboradores)
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={paginaAtual === totalPaginas}
+                  onClick={() => setPagina((p) => p + 1)}
+                >
+                  Próxima
+                </Button>
+              </>
+            )}
+            <div className="w-36">
+              <Select
+                label="Cards por página"
+                value={String(cardsPorPagina)}
+                onChange={handleCardsPorPaginaChange}
+                options={OPCOES_CARDS_POR_PAGINA.map((n) => ({ value: String(n), label: String(n) }))}
+              />
             </div>
-          )}
+          </div>
         </>
       )}
 

@@ -162,4 +162,6 @@ export const ACCEPTED_FILE_LABEL = 'PDF, DOC, DOCX, JPG, PNG';
 
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
-export const PAGE_SIZE = 25;
+// Opções de paginação da tela "Todos Indicadores" (cards de colaborador por
+// página) — ver IndicadoresPage.tsx.
+export const OPCOES_CARDS_POR_PAGINA = [10, 15, 20] as const;
