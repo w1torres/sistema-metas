@@ -50,7 +50,10 @@ export async function loginComEntraId(): Promise<string> {
     throw new Error('Login com Microsoft não configurado (VITE_MSAL_CLIENT_ID/VITE_MSAL_TENANT_ID ausentes).');
   }
   const msal = await getMsalInstance();
-  const request = { scopes: ['openid', 'profile', 'email'] };
+  // select_account: sem isso, com uma sessão Microsoft já ativa no navegador
+  // (SSO), o popup devolve direto essa conta — nunca deixa escolher outra
+  // (ex.: uma conta de serviço como ti@tcheagricola.com.br).
+  const request = { scopes: ['openid', 'profile', 'email'], prompt: 'select_account' };
   try {
     return (await msal.loginPopup(request)).idToken;
   } catch (err) {

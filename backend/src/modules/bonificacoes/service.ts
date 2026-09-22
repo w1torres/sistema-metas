@@ -178,6 +178,13 @@ export async function sincronizarParticipantes(user: AuthUser, id: string): Prom
   return resultado.participantes;
 }
 
+/**
+ * A nota da avaliação de desempenho é do colaborador (uma avaliação só),
+ * não do fornecedor — editar aqui (a partir de UMA bonificação) atualiza a
+ * nota em TODAS as bonificações em que ele participa, igual ao import por
+ * CPF (ver importarNotas). Nunca fica "90 na Corteva e 80 na UPL" pro mesmo
+ * colaborador na mesma avaliação.
+ */
 export async function atualizarNotaParticipante(
   user: AuthUser,
   id: string,
@@ -188,8 +195,12 @@ export async function atualizarNotaParticipante(
   const bonificacao = await repository.findById(id);
   if (!bonificacao) throw ApiError.notFound('Bonificação não encontrada');
 
-  const atualizou = await repository.updateParticipanteNota(id, usuarioId, percentualNota);
-  if (!atualizou) throw ApiError.notFound('Colaborador não é participante desta bonificação');
+  const participantes = await repository.findParticipantes(id);
+  if (!participantes.some((p) => p.usuario_id === usuarioId)) {
+    throw ApiError.notFound('Colaborador não é participante desta bonificação');
+  }
+
+  await repository.updateNotaPorUsuario(usuarioId, percentualNota);
 
   const resultado = await getBonificacao(user, id);
   return resultado.participantes;

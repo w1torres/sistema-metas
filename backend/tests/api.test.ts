@@ -481,6 +481,36 @@ describe('Bonificação', () => {
     expect(participante.percentual_nota).toBe(90);
   });
 
+  it('editar a nota de um colaborador em uma bonificação reflete em todas as outras (nota é única, não por fornecedor)', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+
+    const criarFornecedorA = await request(app)
+      .post('/api/bonificacoes')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ fornecedor: 'Fornecedor Nota Única A', valor_total: 1000, mes_referencia: '2026-09' });
+    const bonificacaoAId = criarFornecedorA.body.data.id;
+
+    const criarFornecedorB = await request(app)
+      .post('/api/bonificacoes')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ fornecedor: 'Fornecedor Nota Única B', valor_total: 2000, mes_referencia: '2026-09' });
+    const bonificacaoBId = criarFornecedorB.body.data.id;
+
+    const atualizarNota = await request(app)
+      .patch(`/api/bonificacoes/${bonificacaoAId}/participantes/${fx.colabAdmId}`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ percentual_nota: 70 });
+    expect(atualizarNota.status).toBe(200);
+
+    const detalheB = await request(app)
+      .get(`/api/bonificacoes/${bonificacaoBId}`)
+      .set('Authorization', `Bearer ${masterToken}`);
+    const participanteB = detalheB.body.data.participantes.find(
+      (p: { usuario_id: string }) => p.usuario_id === fx.colabAdmId,
+    );
+    expect(participanteB.percentual_nota).toBe(70);
+  });
+
   it('marca e desmarca a bonificação como paga', async () => {
     const { token: masterToken } = await login(fx.masterEmail);
     const create = await request(app)

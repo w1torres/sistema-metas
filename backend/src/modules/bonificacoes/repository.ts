@@ -170,17 +170,6 @@ export async function sincronizarParticipantes(
   });
 }
 
-export async function updateParticipanteNota(
-  bonificacaoId: string,
-  usuarioId: string,
-  percentualNota: number,
-): Promise<boolean> {
-  const linhas = await db('bonificacao_colaboradores')
-    .where({ bonificacao_id: bonificacaoId, usuario_id: usuarioId })
-    .update({ percentual_nota: percentualNota, atualizado_em: db.fn.now() });
-  return linhas > 0;
-}
-
 /** Aplica a nota a todas as bonificações em que o colaborador participa; devolve quantas linhas foram atualizadas. */
 export async function updateNotaPorUsuario(usuarioId: string, percentualNota: number): Promise<number> {
   return db('bonificacao_colaboradores')

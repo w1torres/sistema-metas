@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import toast from 'react-hot-toast';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
@@ -17,13 +17,20 @@ function mesAtualISO(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Máscara de moeda: guarda o valor em centavos (inteiro) e formata pra
+// exibição — cada dígito digitado entra pela direita, como caixa de banco
+// (ex.: "1", "12", "123" -> R$ 1,23).
+function formatarCentavosComoMoeda(centavos: number): string {
+  return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
 export default function BonificacaoModal({ isOpen, onClose, bonificacao }: BonificacaoModalProps) {
   const isEditing = !!bonificacao;
   const createBonificacao = useBonificacaoStore((s) => s.createBonificacao);
   const updateBonificacao = useBonificacaoStore((s) => s.updateBonificacao);
 
   const [fornecedor, setFornecedor] = useState('');
-  const [valorTotal, setValorTotal] = useState('');
+  const [valorCentavos, setValorCentavos] = useState(0);
   const [mesReferencia, setMesReferencia] = useState(mesAtualISO());
   const [salvando, setSalvando] = useState(false);
   const [erros, setErros] = useState<Record<string, string>>({});
@@ -31,16 +38,21 @@ export default function BonificacaoModal({ isOpen, onClose, bonificacao }: Bonif
   useEffect(() => {
     if (!isOpen) return;
     setFornecedor(bonificacao?.fornecedor ?? '');
-    setValorTotal(bonificacao ? String(bonificacao.valorTotal) : '');
+    setValorCentavos(bonificacao ? Math.round(bonificacao.valorTotal * 100) : 0);
     setMesReferencia(bonificacao?.mesReferencia ?? mesAtualISO());
     setErros({});
   }, [isOpen, bonificacao]);
 
+  function handleValorChange(e: ChangeEvent<HTMLInputElement>) {
+    const digitos = e.target.value.replace(/\D/g, '');
+    setValorCentavos(digitos ? Number(digitos) : 0);
+  }
+
   async function handleSubmit() {
-    const valor = Number(valorTotal.replace(',', '.'));
+    const valor = valorCentavos / 100;
     const nextErros: Record<string, string> = {};
     if (!fornecedor.trim()) nextErros.fornecedor = 'Informe o fornecedor';
-    if (!valorTotal || Number.isNaN(valor) || valor <= 0) nextErros.valorTotal = 'Informe um valor total válido';
+    if (valor <= 0) nextErros.valorTotal = 'Informe um valor total válido';
     if (!/^\d{4}-\d{2}$/.test(mesReferencia)) nextErros.mesReferencia = 'Informe o mês de referência';
 
     if (Object.keys(nextErros).length > 0) {
@@ -90,11 +102,12 @@ export default function BonificacaoModal({ isOpen, onClose, bonificacao }: Bonif
           error={erros.fornecedor}
         />
         <Input
-          label="Valor Total (R$)"
+          label="Valor Total"
           required
-          inputMode="decimal"
-          value={valorTotal}
-          onChange={(e) => setValorTotal(e.target.value)}
+          inputMode="numeric"
+          value={valorCentavos === 0 ? '' : formatarCentavosComoMoeda(valorCentavos)}
+          onChange={handleValorChange}
+          placeholder="R$ 0,00"
           error={erros.valorTotal}
         />
         <Input

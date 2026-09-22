@@ -8,20 +8,24 @@ import Button from '../common/Button';
 import ConfirmModal from '../common/ConfirmModal';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { podeGerenciarBonificacao } from '../../utils/constants';
+import { Input } from '../common/Input';
 import type { Bonificacao } from '../../types';
 
 interface ResumoColaborador {
   usuarioId: string;
   usuarioNome: string;
   dataAdmissao: string | null;
+  // A nota da avaliação de desempenho é do colaborador, não do fornecedor —
+  // uma avaliação só (ver service.atualizarNotaParticipante/importarNotas no
+  // backend, que já a aplicam em todas as bonificações do colaborador).
+  notaAvaliacao: number;
   totalRecebido: number;
-  porFornecedor: { bonificacaoId: string; fornecedor: string; percentualNota: number; valorRecebido: number }[];
+  porFornecedor: { bonificacaoId: string; fornecedor: string; valorRecebido: number }[];
 }
 
-// Agrega, por colaborador, a nota e o valor recebido em CADA bonificação
-// (fornecedor) — ex.: Corteva paga R$900 (nota 90) e UPL paga R$1.200
-// (nota 80) pro mesmo colaborador, o resumo mostra o total agregado de
-// R$2.100 com o detalhamento (nota + valor) de cada fornecedor.
+// Agrega, por colaborador, o valor recebido em CADA bonificação (fornecedor)
+// — ex.: Corteva paga R$900 e UPL paga R$1.200 pro mesmo colaborador, o
+// resumo mostra o total agregado de R$2.100 com o detalhamento por fornecedor.
 function agregarPorColaborador(bonificacoes: Bonificacao[]): ResumoColaborador[] {
   const porUsuario = new Map<string, ResumoColaborador>();
   for (const bonificacao of bonificacoes) {
@@ -30,7 +34,6 @@ function agregarPorColaborador(bonificacoes: Bonificacao[]): ResumoColaborador[]
       const entrada = {
         bonificacaoId: bonificacao.id,
         fornecedor: bonificacao.fornecedor,
-        percentualNota: participante.percentualNota,
         valorRecebido: participante.valorRecebido,
       };
       if (existente) {
@@ -41,6 +44,7 @@ function agregarPorColaborador(bonificacoes: Bonificacao[]): ResumoColaborador[]
           usuarioId: participante.usuarioId,
           usuarioNome: participante.usuarioNome,
           dataAdmissao: participante.dataAdmissao,
+          notaAvaliacao: participante.percentualNota,
           totalRecebido: participante.valorRecebido,
           porFornecedor: [entrada],
         });
@@ -74,7 +78,9 @@ export default function BonificacaoPage() {
   const [editando, setEditando] = useState<Bonificacao | null>(null);
   const [excluindo, setExcluindo] = useState<Bonificacao | null>(null);
   const [alternandoPagaId, setAlternandoPagaId] = useState<string | null>(null);
-  const [salvandoNotaChave, setSalvandoNotaChave] = useState<string | null>(null);
+  const [salvandoNotaUsuarioId, setSalvandoNotaUsuarioId] = useState<string | null>(null);
+  const [fornecedoresAbertos, setFornecedoresAbertos] = useState(true);
+  const [filtroColaborador, setFiltroColaborador] = useState('');
 
   useEffect(() => {
     fetchBonificacoes().catch(() => toast.error('Não foi possível carregar as bonificações.'));
@@ -82,6 +88,11 @@ export default function BonificacaoPage() {
   }, []);
 
   const resumoPorColaborador = useMemo(() => agregarPorColaborador(bonificacoes), [bonificacoes]);
+  const resumoFiltrado = useMemo(() => {
+    const termo = filtroColaborador.trim().toLowerCase();
+    if (!termo) return resumoPorColaborador;
+    return resumoPorColaborador.filter((r) => r.usuarioNome.toLowerCase().includes(termo));
+  }, [resumoPorColaborador, filtroColaborador]);
 
   if (!user || !podeGerenciarBonificacao(user)) {
     return (
@@ -115,17 +126,22 @@ export default function BonificacaoPage() {
     }
   }
 
-  async function handleNotaChange(bonificacaoId: string, usuarioId: string, valor: string) {
+  // A nota é do colaborador, não do fornecedor — usa a primeira bonificação
+  // em que ele participa só como "porta de entrada" da chamada; o backend
+  // aplica a nota em todas as bonificações dele (ver service.ts).
+  async function handleNotaChange(usuarioId: string, bonificacaoIdQualquer: string, valor: string) {
     const percentual = Number(valor);
     if (Number.isNaN(percentual) || percentual < 0 || percentual > 100) return;
-    const chave = `${bonificacaoId}-${usuarioId}`;
-    setSalvandoNotaChave(chave);
+    setSalvandoNotaUsuarioId(usuarioId);
     try {
-      await atualizarNotaParticipante(bonificacaoId, usuarioId, percentual);
+      await atualizarNotaParticipante(bonificacaoIdQualquer, usuarioId, percentual);
+      // A nota muda em TODAS as bonificações do colaborador, não só na desta
+      // chamada — recarrega tudo pra refletir o valor novo nas outras também.
+      await fetchBonificacoes();
     } catch {
       toast.error('Não foi possível salvar a nota.');
     } finally {
-      setSalvandoNotaChave(null);
+      setSalvandoNotaUsuarioId(null);
     }
   }
 
@@ -147,139 +163,178 @@ export default function BonificacaoPage() {
         </div>
       </div>
 
-      {bonificacoes.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border bg-white p-8 text-center text-sm text-secondary">
-          Nenhuma bonificação cadastrada ainda.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {bonificacoes.map((b) => (
-            <div key={b.id} className="rounded-lg border border-border bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-secondary">
-                    {formatMesReferencia(b.mesReferencia)}
-                  </p>
-                  <p className="text-lg font-bold text-ink">{b.fornecedor}</p>
-                </div>
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-                    b.paga ? 'bg-success/15 text-success' : 'bg-warning/20 text-yellow-800'
-                  }`}
-                >
-                  {b.paga ? '✓ Paga' : '⏳ Pendente'}
-                </span>
-              </div>
+      <div className="rounded-lg border border-border bg-white shadow-sm">
+        <button
+          type="button"
+          onClick={() => setFornecedoresAbertos((v) => !v)}
+          className="flex w-full items-center justify-between p-4 text-left"
+          aria-expanded={fornecedoresAbertos}
+        >
+          <div>
+            <p className="text-lg font-bold text-ink">Bonificações por Fornecedor</p>
+            <p className="text-xs text-secondary">
+              {bonificacoes.length} {bonificacoes.length === 1 ? 'cadastrada' : 'cadastradas'}
+            </p>
+          </div>
+          <span className={`text-secondary transition-transform ${fornecedoresAbertos ? 'rotate-180' : ''}`} aria-hidden="true">
+            ▾
+          </span>
+        </button>
 
-              <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
-                <div>
-                  <p className="text-xs text-secondary">Valor Total</p>
-                  <p className="text-sm font-semibold text-ink">{formatCurrency(b.valorTotal)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-secondary">Colaboradores</p>
-                  <p className="text-sm font-semibold text-ink">{b.totalColaboradores}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-secondary">Valor por Colaborador</p>
-                  <p className="text-sm font-semibold text-primary">{formatCurrency(b.valorPorColaborador)}</p>
-                </div>
-              </div>
+        {fornecedoresAbertos && (
+          <div className="border-t border-border p-4">
+            {bonificacoes.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-secondary">
+                Nenhuma bonificação cadastrada ainda.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {bonificacoes.map((b) => (
+                  <div key={b.id} className="rounded-lg border border-border p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-secondary">
+                          {formatMesReferencia(b.mesReferencia)}
+                        </p>
+                        <p className="text-lg font-bold text-ink">{b.fornecedor}</p>
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                          b.paga ? 'bg-success/15 text-success' : 'bg-warning/20 text-yellow-800'
+                        }`}
+                      >
+                        {b.paga ? '✓ Paga' : '⏳ Pendente'}
+                      </span>
+                    </div>
 
-              <p className="mt-3 text-xs text-secondary">Cadastrado por {b.criadoPorNome}</p>
+                    <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+                      <div>
+                        <p className="text-xs text-secondary">Valor Total</p>
+                        <p className="text-sm font-semibold text-ink">{formatCurrency(b.valorTotal)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-secondary">Colaboradores</p>
+                        <p className="text-sm font-semibold text-ink">{b.totalColaboradores}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-secondary">Valor por Colaborador</p>
+                        <p className="text-sm font-semibold text-primary">{formatCurrency(b.valorPorColaborador)}</p>
+                      </div>
+                    </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  loading={alternandoPagaId === b.id}
-                  onClick={() => handleTogglePaga(b)}
-                >
-                  {b.paga ? 'Marcar como Pendente' : 'Marcar como Paga'}
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => setEditando(b)}>
-                  Editar
-                </Button>
-                <Button variant="danger" size="sm" onClick={() => setExcluindo(b)}>
-                  Excluir
-                </Button>
+                    <p className="mt-3 text-xs text-secondary">Cadastrado por {b.criadoPorNome}</p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        loading={alternandoPagaId === b.id}
+                        onClick={() => handleTogglePaga(b)}
+                      >
+                        {b.paga ? 'Marcar como Pendente' : 'Marcar como Paga'}
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => setEditando(b)}>
+                        Editar
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => setExcluindo(b)}>
+                        Excluir
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ))}
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-lg font-bold text-ink">Colaboradores</p>
+            <p className="text-xs text-secondary">
+              Nota de avaliação (única por colaborador, editável) e valor a receber de cada fornecedor, com o total
+              agregado (ex.: Corteva + UPL).
+            </p>
+          </div>
+          <div className="w-full sm:w-64">
+            <Input
+              label=""
+              placeholder="Buscar colaborador..."
+              value={filtroColaborador}
+              onChange={(e) => setFiltroColaborador(e.target.value)}
+            />
+          </div>
         </div>
-      )}
 
-      {resumoPorColaborador.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border bg-white p-8 text-center text-sm text-secondary">
-          Nenhum colaborador elegível vinculado ainda.
-        </p>
-      ) : (
-        <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
-          <p className="text-lg font-bold text-ink">Colaboradores</p>
-          <p className="mb-3 text-xs text-secondary">
-            Nota de avaliação (editável) e valor a receber de cada fornecedor, com o total agregado por colaborador
-            (ex.: Corteva + UPL).
+        {resumoPorColaborador.length === 0 ? (
+          <p className="mt-3 rounded-lg border border-dashed border-border p-8 text-center text-sm text-secondary">
+            Nenhum colaborador elegível vinculado ainda.
           </p>
-          <table className="w-full text-sm">
+        ) : resumoFiltrado.length === 0 ? (
+          <p className="mt-3 rounded-lg border border-dashed border-border p-8 text-center text-sm text-secondary">
+            Nenhum colaborador encontrado para "{filtroColaborador}".
+          </p>
+        ) : (
+          <table className="mt-3 w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-secondary">
                 <th className="py-1 font-medium">Colaborador</th>
-                <th className="py-1 font-medium">Fornecedor</th>
                 <th className="py-1 font-medium">Nota da Avaliação</th>
+                <th className="py-1 font-medium">Fornecedor</th>
                 <th className="py-1 text-right font-medium">Valor a Receber</th>
                 <th className="py-1 text-right font-medium">Total do Colaborador</th>
               </tr>
             </thead>
             <tbody>
-              {resumoPorColaborador.map((r) => (
+              {resumoFiltrado.map((r) => (
                 <Fragment key={r.usuarioId}>
-                  {r.porFornecedor.map((f, i) => {
-                    const chave = `${f.bonificacaoId}-${r.usuarioId}`;
-                    return (
-                      <tr key={chave} className="border-b border-border">
-                        {i === 0 && (
+                  {r.porFornecedor.map((f, i) => (
+                    <tr key={`${f.bonificacaoId}-${r.usuarioId}`} className="border-b border-border">
+                      {i === 0 && (
+                        <>
                           <td className="py-1.5 align-top text-ink" rowSpan={r.porFornecedor.length}>
                             {r.usuarioNome}
                             <span className="block text-xs text-secondary">
                               Admissão: {formatDate(r.dataAdmissao)}
                             </span>
                           </td>
-                        )}
-                        <td className="py-1.5 text-secondary">{f.fornecedor}</td>
-                        <td className="py-1.5">
-                          <input
-                            // Remonta (reset do valor não-controlado) sempre que o valor
-                            // canônico do servidor mudar — reflete um save bem-sucedido, e
-                            // reverte a digitação se o save falhar (não deixa a UI "mentir").
-                            key={`${chave}-${f.percentualNota}`}
-                            type="number"
-                            min={0}
-                            max={100}
-                            defaultValue={f.percentualNota}
-                            disabled={salvandoNotaChave === chave}
-                            onBlur={(e) => handleNotaChange(f.bonificacaoId, r.usuarioId, e.target.value)}
-                            className="w-16 rounded border border-border px-1.5 py-0.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                          <span className="ml-1 text-xs text-secondary">%</span>
-                        </td>
-                        <td className="py-1.5 text-right text-ink">{formatCurrency(f.valorRecebido)}</td>
-                        {i === 0 && (
-                          <td
-                            className="py-1.5 text-right align-top font-semibold text-primary"
-                            rowSpan={r.porFornecedor.length}
-                          >
-                            {formatCurrency(r.totalRecebido)}
+                          <td className="py-1.5 align-top" rowSpan={r.porFornecedor.length}>
+                            <input
+                              // Remonta (reset do valor não-controlado) sempre que o valor
+                              // canônico do servidor mudar — reflete um save bem-sucedido, e
+                              // reverte a digitação se o save falhar (não deixa a UI "mentir").
+                              key={`${r.usuarioId}-${r.notaAvaliacao}`}
+                              type="number"
+                              min={0}
+                              max={100}
+                              defaultValue={r.notaAvaliacao}
+                              disabled={salvandoNotaUsuarioId === r.usuarioId}
+                              onBlur={(e) => handleNotaChange(r.usuarioId, f.bonificacaoId, e.target.value)}
+                              className="w-16 rounded border border-border px-1.5 py-0.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                            <span className="ml-1 text-xs text-secondary">%</span>
                           </td>
-                        )}
-                      </tr>
-                    );
-                  })}
+                        </>
+                      )}
+                      <td className="py-1.5 text-secondary">{f.fornecedor}</td>
+                      <td className="py-1.5 text-right text-ink">{formatCurrency(f.valorRecebido)}</td>
+                      {i === 0 && (
+                        <td
+                          className="py-1.5 text-right align-top font-semibold text-primary"
+                          rowSpan={r.porFornecedor.length}
+                        >
+                          {formatCurrency(r.totalRecebido)}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
                 </Fragment>
               ))}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
 
       <ImportNotasModal isOpen={importandoNotas} onClose={() => setImportandoNotas(false)} />
       <BonificacaoModal isOpen={criando} onClose={() => setCriando(false)} bonificacao={null} />
