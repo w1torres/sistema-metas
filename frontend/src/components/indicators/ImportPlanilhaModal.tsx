@@ -78,7 +78,12 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
         const formaMedicao = row['forma de medição']?.trim() || undefined;
         const evidenciaObrigatoria = row['evidência obrigatória']?.trim() || undefined;
         const tabelaAtingimento = row['tabela de atingimento (redutor)']?.trim() || undefined;
-        const peso = Number((row['peso'] ?? '').replace('%', '').replace(',', '.').trim());
+        let peso = Number((row['peso'] ?? '').replace('%', '').replace(',', '.').trim());
+        // Coluna formatada como percentual no Excel (célula com formato "0%",
+        // sem o símbolo % no texto lido) — o valor cru é a fração (0,2 para
+        // 20%), não o número já em percentual. Sem isso, "20%" na planilha
+        // vira peso 0.2 em vez de 20.
+        if (peso > 0 && peso <= 1) peso *= 100;
         const observacao = row['observação / sinalização']?.trim() || undefined;
         const cpfBruto = row['cpf'] ?? '';
         const cpf = normalizarCpfDigitos(cpfBruto);

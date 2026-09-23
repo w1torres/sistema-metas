@@ -1,6 +1,15 @@
 import type { Request, Response } from 'express';
 import Joi from 'joi';
 import * as usersService from './service.js';
+import { isoDateOnly } from '../../utils/dates.js';
+
+// Nunca deixa um Date puro do Joi chegar no INSERT/UPDATE (ver utils/dates.ts
+// — o driver pg grava um dia antes em fusos negativos, como Brasília).
+function corrigirDatas<T extends { data_nascimento?: unknown; data_admissao?: unknown }>(value: T): T {
+  if (value.data_nascimento !== undefined) value.data_nascimento = isoDateOnly(value.data_nascimento) as never;
+  if (value.data_admissao !== undefined) value.data_admissao = isoDateOnly(value.data_admissao) as never;
+  return value;
+}
 
 const dataSchema = Joi.date().iso().max('now');
 const ROLES = ['MASTER', 'ADMIN', 'GERENTES', 'COORDENADORES_SUPERVISORES', 'COLABORADOR'] as const;
@@ -44,7 +53,7 @@ export async function create(req: Request, res: Response): Promise<void> {
     res.status(400).json({ success: false, error: error.message });
     return;
   }
-  const user = await usersService.createUser(value);
+  const user = await usersService.createUser(corrigirDatas(value));
   res.status(201).json({ success: true, data: user });
 }
 
@@ -54,7 +63,7 @@ export async function update(req: Request, res: Response): Promise<void> {
     res.status(400).json({ success: false, error: error.message });
     return;
   }
-  const user = await usersService.updateUser(req.params.id, value);
+  const user = await usersService.updateUser(req.params.id, corrigirDatas(value));
   res.json({ success: true, data: user });
 }
 

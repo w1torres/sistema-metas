@@ -82,6 +82,19 @@ export async function createIndicador(user: AuthUser, input: CreateInput): Promi
     ? user.departamentoId
     : input.departamento_id || responsavel.departamento_id;
 
+  // Recusa duplicata (mesmo responsável + nome + período) em vez de criar de
+  // novo — protege contra reimportar a mesma planilha ou um clique duplicado
+  // que já tinha sido aceito (ver ImportPlanilhaModal.tsx no frontend).
+  const duplicado = await repository.findDuplicado(
+    input.usuario_responsavel_id,
+    input.nome,
+    input.data_inicio,
+    input.data_fim,
+  );
+  if (duplicado) {
+    throw ApiError.conflict(`Já existe um indicador "${input.nome}" para este responsável neste período`);
+  }
+
   const criado = await repository.create({ ...input, departamento_id: departamentoId });
   await repository.pushHistory({
     indicador_id: criado.id,

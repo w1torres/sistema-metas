@@ -291,6 +291,59 @@ describe('Anexos', () => {
 });
 
 describe('Criação de indicador', () => {
+  it('recusa duplicata — mesmo responsável, nome e período (reimportar a mesma planilha não gera cópia)', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const payload = {
+      usuario_responsavel_id: fx.colabAdmId,
+      nome: 'Indicador Importado Duas Vezes',
+      peso: 15,
+      data_inicio: '2026-05-01',
+      data_fim: '2027-04-30',
+    };
+
+    const primeira = await request(app)
+      .post('/api/indicators')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send(payload);
+    expect(primeira.status).toBe(201);
+
+    const segunda = await request(app)
+      .post('/api/indicators')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send(payload);
+    expect(segunda.status).toBe(409);
+    expect(segunda.body.error).toMatch(/já existe/i);
+
+    const lista = await request(app)
+      .get('/api/indicators')
+      .set('Authorization', `Bearer ${masterToken}`);
+    const total = lista.body.data.filter((i: { nome: string }) => i.nome === payload.nome);
+    expect(total).toHaveLength(1);
+  });
+
+  it('grava data_inicio/data_fim exatas, sem adiantar um dia por fuso horário (Joi.date() -> pg em fuso negativo)', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const criar = await request(app)
+      .post('/api/indicators')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({
+        usuario_responsavel_id: fx.colabAdmId,
+        nome: 'Indicador Data Exata',
+        peso: 10,
+        data_inicio: '2026-05-01',
+        data_fim: '2027-04-30',
+      });
+    expect(criar.status).toBe(201);
+    expect(criar.body.data.data_inicio.slice(0, 10)).toBe('2026-05-01');
+    expect(criar.body.data.data_fim.slice(0, 10)).toBe('2027-04-30');
+
+    const editar = await request(app)
+      .put(`/api/indicators/${criar.body.data.id}`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ data_inicio: '2026-06-01' });
+    expect(editar.body.data.data_inicio.slice(0, 10)).toBe('2026-06-01');
+  });
+
   it('MASTER cria sem informar departamento_id — usa o departamento do responsável (nunca null)', async () => {
     const { token: masterToken } = await login(fx.masterEmail);
     const res = await request(app)
@@ -437,6 +490,28 @@ describe('Definição de senha via token', () => {
       .post('/api/auth/definir-senha')
       .send({ token: 'token-que-nao-existe', novaSenha: 'qualquerSenha123' });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('Cadastro de usuário — datas', () => {
+  it('grava data_admissao exata, sem adiantar um dia por fuso horário', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const criar = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({
+        nome: 'Colaborador Data Exata',
+        email: 'data.exata@teste.com',
+        departamento_id: fx.deptAdmId,
+        role: 'COLABORADOR',
+        data_admissao: '2025-01-01',
+      });
+    expect(criar.status).toBe(201);
+    expect(criar.body.data.data_admissao.slice(0, 10)).toBe('2025-01-01');
+
+    // Não deixa esse usuário elegível vazar pra o describe('Bonificação'),
+    // que conta participantes ativos+admitidos no banco inteiro.
+    await db('users').where('id', criar.body.data.id).del();
   });
 });
 

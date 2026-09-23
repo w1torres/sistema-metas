@@ -3,6 +3,7 @@ import Joi from 'joi';
 import * as service from './service.js';
 import { importarIndicadores } from './import.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { isoDateOnly } from '../../utils/dates.js';
 import type { IndicadorStatus } from '../../types/index.js';
 
 function ok(res: Response, data: unknown, status = 200): void {
@@ -58,6 +59,11 @@ export async function create(req: Request, res: Response): Promise<void> {
     res.status(400).json({ success: false, error: error.message });
     return;
   }
+  // Joi.date() converteu a string validada num Date — nunca deixa isso
+  // chegar no INSERT (ver utils/dates.ts: o driver pg grava um dia antes em
+  // fusos negativos, como Brasília).
+  value.data_inicio = isoDateOnly(value.data_inicio);
+  value.data_fim = isoDateOnly(value.data_fim);
   ok(res, await service.createIndicador(req.user!, value), 201);
 }
 
@@ -83,6 +89,8 @@ export async function update(req: Request, res: Response): Promise<void> {
     res.status(400).json({ success: false, error: error.message });
     return;
   }
+  if (value.data_inicio !== undefined) value.data_inicio = isoDateOnly(value.data_inicio);
+  if (value.data_fim !== undefined) value.data_fim = isoDateOnly(value.data_fim);
   ok(res, await service.updateIndicador(req.user!, req.params.id, value));
 }
 

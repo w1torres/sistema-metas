@@ -101,6 +101,25 @@ export async function findById(id: string): Promise<Indicador | undefined> {
   return row ? mapRow(row) : undefined;
 }
 
+// Mesmo responsável + mesmo nome + mesmo período (a safra do import, ex.)
+// já cadastrado — usado por createIndicador pra recusar duplicata em vez de
+// criar de novo (ex.: reimportar a mesma planilha, ou um retry de rede que
+// já tinha sido aceito antes).
+export async function findDuplicado(
+  usuarioResponsavelId: string,
+  nome: string,
+  dataInicio: string,
+  dataFim: string,
+): Promise<Indicador | undefined> {
+  const row = await baseQuery()
+    .where('indicadores.usuario_responsavel_id', usuarioResponsavelId)
+    .whereRaw('lower(indicadores.nome) = lower(?)', [nome])
+    .where('indicadores.data_inicio', dataInicio)
+    .where('indicadores.data_fim', dataFim)
+    .first();
+  return row ? mapRow(row) : undefined;
+}
+
 interface CreateIndicadorInput {
   departamento_id: string;
   usuario_responsavel_id: string;
