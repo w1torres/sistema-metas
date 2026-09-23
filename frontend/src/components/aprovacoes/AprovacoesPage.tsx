@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { CheckSquare } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import { useDepartmentStore } from '../../store/departmentStore';
@@ -430,7 +431,10 @@ export default function AprovacoesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-ink">Aprovações</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-ink">
+          <CheckSquare className="h-6 w-6 text-primary" aria-hidden="true" />
+          Aprovações
+        </h1>
         <p className="text-sm text-secondary">
           {isGestorDepartamento
             ? `Indicadores do${meusDepartamentos.length > 1 ? 's departamentos' : ' departamento'} ${meusDepartamentos

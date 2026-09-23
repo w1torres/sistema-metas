@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { CheckCircle2, Circle, Gift, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { useBonificacaoStore } from '../../store/bonificacaoStore';
 import { useAuthStore } from '../../store/authStore';
 import BonificacaoModal from './BonificacaoModal';
@@ -8,7 +9,6 @@ import Button from '../common/Button';
 import ConfirmModal from '../common/ConfirmModal';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { podeGerenciarBonificacao } from '../../utils/constants';
-import { Input } from '../common/Input';
 import type { Bonificacao } from '../../types';
 
 interface ResumoColaborador {
@@ -149,7 +149,10 @@ export default function BonificacaoPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Bonificação</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-ink">
+            <Gift className="h-6 w-6 text-primary" aria-hidden="true" />
+            Bonificação
+          </h1>
           <p className="text-sm text-secondary">
             Cadastre a bonificação recebida por fornecedor. Os colaboradores participantes são vinculados
             automaticamente (ativos, admitidos até 31/12 do ano anterior).
@@ -157,9 +160,13 @@ export default function BonificacaoPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setImportandoNotas(true)}>
+            <Upload className="h-4 w-4" aria-hidden="true" />
             Importar Notas
           </Button>
-          <Button onClick={() => setCriando(true)}>Nova Bonificação</Button>
+          <Button onClick={() => setCriando(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Nova Bonificação
+          </Button>
         </div>
       </div>
 
@@ -231,12 +238,19 @@ export default function BonificacaoPage() {
                         loading={alternandoPagaId === b.id}
                         onClick={() => handleTogglePaga(b)}
                       >
+                        {b.paga ? (
+                          <Circle className="h-3.5 w-3.5" aria-hidden="true" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        )}
                         {b.paga ? 'Marcar como Pendente' : 'Marcar como Paga'}
                       </Button>
                       <Button variant="secondary" size="sm" onClick={() => setEditando(b)}>
+                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                         Editar
                       </Button>
                       <Button variant="danger" size="sm" onClick={() => setExcluindo(b)}>
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                         Excluir
                       </Button>
                     </div>
@@ -257,12 +271,17 @@ export default function BonificacaoPage() {
               agregado (ex.: Corteva + UPL).
             </p>
           </div>
-          <div className="w-full sm:w-64">
-            <Input
-              label=""
+          <div className="relative w-full sm:w-64">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary"
+              aria-hidden="true"
+            />
+            <input
+              type="text"
               placeholder="Buscar colaborador..."
               value={filtroColaborador}
               onChange={(e) => setFiltroColaborador(e.target.value)}
+              className="w-full rounded-md border border-border py-2 pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>

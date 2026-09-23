@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Download, ListChecks, Plus, Upload } from 'lucide-react';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import { useDepartmentStore } from '../../store/departmentStore';
 import ColaboradorIndicadoresGroup from './ColaboradorIndicadoresGroup';
@@ -118,17 +119,25 @@ export default function IndicadoresPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Todos Indicadores</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-ink">
+            <ListChecks className="h-6 w-6 text-primary" aria-hidden="true" />
+            Todos Indicadores
+          </h1>
           <p className="text-sm text-secondary">
             {filtrados.length} indicador(es) de {grupos.length} colaborador(es)
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setCriando(true)}>+ Novo Indicador</Button>
+          <Button onClick={() => setCriando(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Novo Indicador
+          </Button>
           <Button variant="secondary" onClick={() => setImportando(true)}>
+            <Upload className="h-4 w-4" aria-hidden="true" />
             Importar Planilha
           </Button>
           <Button variant="secondary" onClick={handleExportCSV}>
+            <Download className="h-4 w-4" aria-hidden="true" />
             Exportar CSV
           </Button>
         </div>

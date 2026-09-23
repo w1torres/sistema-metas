@@ -1,5 +1,24 @@
 import type { Indicador, Role } from '../types';
 
+// Compartilhado pelas tabelas de faixa (Múltiplos de PPR e Percentual de
+// Atingimento) — ambas exibem faixas no formato "De X% a Y%", com a primeira
+// linha "Igual ou acima de" e a última "Abaixo de".
+export function formatNumeroPtBR(n: number): string {
+  return n.toFixed(2).replace('.', ',');
+}
+
+export function labelFaixa(
+  faixaMin: number,
+  faixaMax: number,
+  isMaior: boolean,
+  isMenor: boolean,
+  faixaMinDaProxima?: number,
+): string {
+  if (isMaior) return `Igual ou acima de ${formatNumeroPtBR(faixaMin)}%`;
+  if (isMenor) return `Abaixo de ${formatNumeroPtBR(faixaMinDaProxima ?? faixaMax)}%`;
+  return `De ${formatNumeroPtBR(faixaMin)}% a ${formatNumeroPtBR(faixaMax)}%`;
+}
+
 /**
  * A Tabela de Múltiplos de PPR não é definida por cargo individual, e sim por 3
  * grupos — que hoje são o próprio Papel/Perfil do usuário (ver types.Role):

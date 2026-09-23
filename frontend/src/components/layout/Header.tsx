@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { LogOut, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useDepartmentStore } from '../../store/departmentStore';
 import { ROLE_LABELS } from '../../utils/constants';
@@ -32,7 +33,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           aria-label="Abrir menu"
           className="rounded p-2 hover:bg-gray-100 lg:hidden"
         >
-          ☰
+          <Menu className="h-5 w-5" aria-hidden="true" />
         </button>
         <img src={logo} alt="Logo" className="h-14 w-14" />
         <span className="text-lg font-bold text-primary">Sistema de Metas</span>
@@ -53,8 +54,9 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-secondary hover:bg-gray-50"
+            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-secondary hover:bg-gray-50"
           >
+            <LogOut className="h-4 w-4" aria-hidden="true" />
             Sair
           </button>
         </div>

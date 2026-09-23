@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { BarChart3 } from 'lucide-react';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import { useUserStore } from '../../store/userStore';
 import { usePPRStore } from '../../store/pprStore';
@@ -112,7 +113,10 @@ export default function RelatoriosPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Relatórios</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-ink">
+            <BarChart3 className="h-6 w-6 text-primary" aria-hidden="true" />
+            Relatórios
+          </h1>
           <p className="text-sm text-secondary">Consolidado de indicadores por departamento e por colaborador</p>
         </div>
         <div className="w-full sm:w-48">

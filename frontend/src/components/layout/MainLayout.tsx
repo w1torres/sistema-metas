@@ -5,6 +5,9 @@ import Sidebar from './Sidebar';
 import { useDepartmentStore } from '../../store/departmentStore';
 import { useCargoStore } from '../../store/cargoStore';
 import { useUserStore } from '../../store/userStore';
+import { usePPRStore } from '../../store/pprStore';
+import { useTrilhaStore } from '../../store/trilhaStore';
+import { useAtingimentoStore } from '../../store/atingimentoStore';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -19,6 +22,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const fetchCargos = useCargoStore((s) => s.fetchCargos);
   const usuarios = useUserStore((s) => s.users);
   const fetchUsers = useUserStore((s) => s.fetchUsers);
+  const faixasPPR = usePPRStore((s) => s.faixas);
+  const fetchFaixasPPR = usePPRStore((s) => s.fetchFaixas);
+  const trilhas = useTrilhaStore((s) => s.trilhas);
+  const fetchTrilhas = useTrilhaStore((s) => s.fetchTrilhas);
+  const faixasAtingimento = useAtingimentoStore((s) => s.faixas);
+  const fetchFaixasAtingimento = useAtingimentoStore((s) => s.fetchFaixas);
 
   // Carrega uma vez por sessão (guardas por lista vazia) — dado real do
   // backend, substitui o mockData.json que populava essas stores de cara.
@@ -26,6 +35,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
     if (departamentos.length === 0) fetchDepartamentos().catch(() => {});
     if (cargos.length === 0) fetchCargos().catch(() => {});
     if (usuarios.length === 0) fetchUsers().catch(() => {});
+    if (faixasPPR.length === 0) fetchFaixasPPR().catch(() => {});
+    if (trilhas.length === 0) fetchTrilhas().catch(() => {});
+    if (faixasAtingimento.length === 0) fetchFaixasAtingimento().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

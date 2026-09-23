@@ -1,4 +1,4 @@
-import type { Bonificacao, BonificacaoParticipante, Departamento, MinhaBonificacao, User } from '../types';
+import type { Bonificacao, BonificacaoParticipante, Departamento, MinhaBonificacao, PilarPeso, PPRFaixa, Trilha, User } from '../types';
 
 // Formato exato de app/src/types/index.ts (backend) — nomes de campo em
 // snake_case/português vindos do banco, alguns diferentes do shape do
@@ -143,4 +143,55 @@ export function mapMinhaBonificacao(b: BackendMinhaBonificacao): MinhaBonificaca
     valorPorColaborador: b.valor_por_colaborador,
     valorRecebido: b.valor_recebido,
   };
+}
+
+export interface BackendPPRFaixa {
+  id: string;
+  grupo_cargo: string;
+  faixa_min: number;
+  faixa_max: number;
+  multiplo: number;
+}
+
+export function mapPPRFaixa(f: BackendPPRFaixa): PPRFaixa {
+  return { id: f.id, cargo: f.grupo_cargo, faixaMin: f.faixa_min, faixaMax: f.faixa_max, multiplo: f.multiplo };
+}
+
+export interface BackendTrilhaPilar {
+  pilar: string;
+  peso: number;
+  ordem: number | null;
+}
+
+export interface BackendTrilha {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  pilares: BackendTrilhaPilar[];
+}
+
+function mapPilarPeso(p: BackendTrilhaPilar): PilarPeso {
+  return { pilar: p.pilar, peso: p.peso };
+}
+
+export function mapTrilha(t: BackendTrilha): Trilha {
+  return { id: t.id, nome: t.nome, descricao: t.descricao ?? '', pilares: t.pilares.map(mapPilarPeso) };
+}
+
+export interface BackendAtingimentoFaixa {
+  id: string;
+  faixa_min: number;
+  faixa_max: number;
+  percentual_peso: number;
+}
+
+export interface AtingimentoFaixa {
+  id: string;
+  faixaMin: number;
+  faixaMax: number;
+  percentualPeso: number;
+}
+
+export function mapAtingimentoFaixa(f: BackendAtingimentoFaixa): AtingimentoFaixa {
+  return { id: f.id, faixaMin: f.faixa_min, faixaMax: f.faixa_max, percentualPeso: f.percentual_peso };
 }

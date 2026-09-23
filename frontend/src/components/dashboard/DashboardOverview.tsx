@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LayoutDashboard } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import { useUserStore } from '../../store/userStore';
@@ -77,7 +78,10 @@ export default function DashboardOverview() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Visão Geral</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-ink">
+            <LayoutDashboard className="h-6 w-6 text-primary" aria-hidden="true" />
+            Visão Geral
+          </h1>
           <p className="text-sm text-secondary">Bem-vindo, {user.nome}</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">

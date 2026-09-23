@@ -219,6 +219,58 @@ describe('Fluxo de aprovação em 2 etapas', () => {
   });
 });
 
+describe('Criação de indicador', () => {
+  it('MASTER cria sem informar departamento_id — usa o departamento do responsável (nunca null)', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const res = await request(app)
+      .post('/api/indicators')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({
+        usuario_responsavel_id: fx.colabAdmId,
+        nome: 'Indicador Sem Departamento Explícito',
+        peso: 25,
+        data_inicio: '2026-01-01',
+        data_fim: '2026-12-31',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.data.departamento_id).toBe(fx.deptAdmId);
+  });
+
+  it('MASTER cria informando um departamento_id diferente do responsável', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const res = await request(app)
+      .post('/api/indicators')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({
+        usuario_responsavel_id: fx.colabAdmId,
+        departamento_id: fx.deptTiId,
+        nome: 'Indicador Cross-Departamento',
+        peso: 25,
+        data_inicio: '2026-01-01',
+        data_fim: '2026-12-31',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.data.departamento_id).toBe(fx.deptTiId);
+  });
+
+  it('gestor de departamento sempre cria no próprio departamento, mesmo enviando outro', async () => {
+    const { token: gestorToken } = await login(fx.gestorAdmEmail);
+    const res = await request(app)
+      .post('/api/indicators')
+      .set('Authorization', `Bearer ${gestorToken}`)
+      .send({
+        usuario_responsavel_id: fx.colabAdmId,
+        departamento_id: fx.deptTiId,
+        nome: 'Indicador Gestor Ignora Departamento Enviado',
+        peso: 25,
+        data_inicio: '2026-01-01',
+        data_fim: '2026-12-31',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.data.departamento_id).toBe(fx.deptAdmId);
+  });
+});
+
 describe('Import de planilha', () => {
   it('importa linha válida e reporta erro detalhado na linha inválida', async () => {
     const { token } = await login(fx.gestorAdmEmail);
@@ -536,5 +588,115 @@ describe('Bonificação', () => {
     expect(desmarcarPaga.status).toBe(200);
     expect(desmarcarPaga.body.data.paga).toBe(false);
     expect(desmarcarPaga.body.data.pago_em).toBeNull();
+  });
+});
+
+describe('Tabela de Múltiplos de PPR (bandas)', () => {
+  it('edita faixa (min/max) e múltiplo de várias linhas de uma vez, e recusa sobreposição', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+
+    const [g1] = await db('ppr_faixas')
+      .insert({ grupo_cargo: 'GERENTES', faixa_min: 90, faixa_max: 100, multiplo: 2 })
+      .returning('id');
+    const [g2] = await db('ppr_faixas')
+      .insert({ grupo_cargo: 'GERENTES', faixa_min: 0, faixa_max: 89.99, multiplo: 1 })
+      .returning('id');
+
+    const editar = await request(app)
+      .put('/api/ppr/faixas')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({
+        faixas: [
+          { id: g1.id, faixa_min: 95, faixa_max: 999, multiplo: 3 },
+          { id: g2.id, faixa_min: 0, faixa_max: 94.99, multiplo: 1.5 },
+        ],
+      });
+    expect(editar.status).toBe(200);
+    const atualizado = editar.body.data.find((f: { id: string }) => f.id === g1.id);
+    expect(atualizado.faixa_min).toBe(95);
+    expect(atualizado.multiplo).toBe(3);
+
+    const sobrepondo = await request(app)
+      .put('/api/ppr/faixas')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({
+        faixas: [
+          { id: g1.id, faixa_min: 90, faixa_max: 999, multiplo: 3 },
+          { id: g2.id, faixa_min: 0, faixa_max: 94.99, multiplo: 1.5 },
+        ],
+      });
+    expect(sobrepondo.status).toBe(400);
+    expect(sobrepondo.body.error).toMatch(/sobrep/);
+  });
+
+  it('gerente (sem acesso amplo) não pode editar as bandas', async () => {
+    const { token: gestorToken } = await login(fx.gestorAdmEmail);
+    const res = await request(app)
+      .put('/api/ppr/faixas')
+      .set('Authorization', `Bearer ${gestorToken}`)
+      .send({ faixas: [] });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('Pilares por Trilha (pesos)', () => {
+  it('atualiza os pesos quando a soma é 100%, e recusa quando não é', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+
+    const [trilha] = await db('trilhas').insert({ nome: 'Trilha Teste', descricao: 'Teste' }).returning('id');
+    await db('trilha_pilares').insert([
+      { trilha_id: trilha.id, pilar: 'Pilar A', peso: 60, ordem: 1 },
+      { trilha_id: trilha.id, pilar: 'Pilar B', peso: 40, ordem: 2 },
+    ]);
+
+    const invalida = await request(app)
+      .put(`/api/trilhas/${trilha.id}/pilares`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ pilares: [{ pilar: 'Pilar A', peso: 60 }, { pilar: 'Pilar B', peso: 50 }] });
+    expect(invalida.status).toBe(400);
+    expect(invalida.body.error).toMatch(/soma/);
+
+    const valida = await request(app)
+      .put(`/api/trilhas/${trilha.id}/pilares`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ pilares: [{ pilar: 'Pilar A', peso: 70 }, { pilar: 'Pilar B', peso: 30 }] });
+    expect(valida.status).toBe(200);
+    const pilarA = valida.body.data.pilares.find((p: { pilar: string }) => p.pilar === 'Pilar A');
+    expect(pilarA.peso).toBe(70);
+  });
+});
+
+describe('Tabela de Percentual de Atingimento dos Indicadores', () => {
+  it('lista as faixas seed e permite editar todas de uma vez', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+
+    const listar = await request(app).get('/api/atingimento/faixas').set('Authorization', `Bearer ${masterToken}`);
+    expect(listar.status).toBe(200);
+    expect(listar.body.data.length).toBeGreaterThanOrEqual(5);
+
+    const edicoes = listar.body.data.map((f: { id: string; faixa_min: number; faixa_max: number }) => ({
+      id: f.id,
+      faixa_min: f.faixa_min,
+      faixa_max: f.faixa_max,
+      percentual_peso: f.faixa_min >= 100 ? 100 : 50,
+    }));
+    const editar = await request(app)
+      .put('/api/atingimento/faixas')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ faixas: edicoes });
+    expect(editar.status).toBe(200);
+    expect(editar.body.data.find((f: { faixa_min: number }) => f.faixa_min < 100)?.percentual_peso).toBe(50);
+  });
+
+  it('colaborador comum só consegue ler, não editar', async () => {
+    const { token: colabToken } = await login(fx.colabAdmEmail);
+    const ler = await request(app).get('/api/atingimento/faixas').set('Authorization', `Bearer ${colabToken}`);
+    expect(ler.status).toBe(200);
+
+    const editar = await request(app)
+      .put('/api/atingimento/faixas')
+      .set('Authorization', `Bearer ${colabToken}`)
+      .send({ faixas: [] });
+    expect(editar.status).toBe(403);
   });
 });

@@ -68,10 +68,19 @@ export async function createIndicador(user: AuthUser, input: CreateInput): Promi
   const responsavel = await usersRepository.findById(input.usuario_responsavel_id);
   if (!responsavel) throw ApiError.badRequest('Responsável não encontrado');
 
-  const departamentoId = isGestorDepartamento(user.role) ? user.departamentoId : input.departamento_id;
   if (isGestorDepartamento(user.role) && responsavel.departamento_id !== user.departamentoId) {
     throw ApiError.forbidden('Responsável fora do seu departamento');
   }
+
+  // Gestor de departamento (GERENTES/COORDENADORES_SUPERVISORES) só cria no
+  // próprio departamento. MASTER/ADMIN podem informar um departamento
+  // diferente do responsável (ex.: indicador cross-departamento), mas se não
+  // informarem nada, cai no departamento do responsável — nunca null (a
+  // coluna é NOT NULL; sem este fallback, um POST sem departamento_id
+  // quebrava com erro 500 de constraint em vez de criar o indicador).
+  const departamentoId = isGestorDepartamento(user.role)
+    ? user.departamentoId
+    : input.departamento_id || responsavel.departamento_id;
 
   const criado = await repository.create({ ...input, departamento_id: departamentoId });
   await repository.pushHistory({

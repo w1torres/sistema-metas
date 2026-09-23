@@ -24,6 +24,18 @@ export async function updateMultiplo(id: string, multiplo: number): Promise<PPRF
   return findById(id);
 }
 
+export async function atualizarBandas(
+  edicoes: { id: string; faixaMin: number; faixaMax: number; multiplo: number }[],
+): Promise<void> {
+  await db.transaction(async (trx) => {
+    for (const e of edicoes) {
+      await trx('ppr_faixas')
+        .where('id', e.id)
+        .update({ faixa_min: e.faixaMin, faixa_max: e.faixaMax, multiplo: e.multiplo, atualizado_em: trx.fn.now() });
+    }
+  });
+}
+
 export async function findFaixaParaGrupo(grupoCargo: string, percentual: number): Promise<PPRFaixa | undefined> {
   const rows = await findAll();
   const doGrupo = rows.filter((r) => r.grupo_cargo === grupoCargo).sort((a, b) => a.faixa_min - b.faixa_min);

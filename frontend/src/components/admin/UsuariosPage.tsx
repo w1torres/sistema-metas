@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Plus, Upload, Users } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
 import { useAuthStore } from '../../store/authStore';
 import { useDepartmentStore } from '../../store/departmentStore';
@@ -98,15 +99,22 @@ export default function UsuariosPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Usuários</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-ink">
+            <Users className="h-6 w-6 text-primary" aria-hidden="true" />
+            Usuários
+          </h1>
           <p className="text-sm text-secondary">
             {filtrados.length} de {users.length} usuário(s) — cadastre aqui quem poderá acessar o sistema com email
             corporativo (login via Microsoft chega na Etapa 2).
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setCriando(true)}>+ Novo Usuário</Button>
+          <Button onClick={() => setCriando(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Novo Usuário
+          </Button>
           <Button variant="secondary" onClick={() => setImportando(true)}>
+            <Upload className="h-4 w-4" aria-hidden="true" />
             Importar Planilha
           </Button>
         </div>

@@ -1,5 +1,7 @@
+import { Table2 } from 'lucide-react';
 import { useTrilhaStore } from '../../store/trilhaStore';
 import MultiplosPPRTable from './MultiplosPPRTable';
+import TabelaAtingimentoTable from './TabelaAtingimentoTable';
 import TrilhaPilaresTable from './TrilhaPilaresTable';
 
 export default function PPRPage() {
@@ -9,7 +11,10 @@ export default function PPRPage() {
     <div className="flex flex-col gap-10">
       <section className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Tabelas</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-ink">
+            <Table2 className="h-6 w-6 text-primary" aria-hidden="true" />
+            Tabelas
+          </h1>
           <p className="text-sm text-secondary">
             Múltiplo pago por grupo de cargo, de acordo com o percentual do peso concluído pelo colaborador (soma do
             peso dos indicadores concluídos, dividido pelo peso total). Clique em "Editar" para ajustar os valores.
@@ -17,6 +22,18 @@ export default function PPRPage() {
         </div>
 
         <MultiplosPPRTable />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-ink">Percentual de Atingimento dos Indicadores</h2>
+          <p className="text-sm text-secondary">
+            Quanto maior, melhor: converte o % da meta atingida pelo indicador no % do peso dele que conta no
+            cálculo do colaborador. Referência usada pelo gestor ao marcar o atendimento na aprovação.
+          </p>
+        </div>
+
+        <TabelaAtingimentoTable />
       </section>
 
       <section className="flex flex-col gap-4">

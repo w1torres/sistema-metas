@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { ListChecks } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import SummaryCard from './SummaryCard';
@@ -82,7 +83,10 @@ export default function DashboardColaborador() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-ink">Meus Indicadores</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-ink">
+          <ListChecks className="h-6 w-6 text-primary" aria-hidden="true" />
+          Meus Indicadores
+        </h1>
         <p className="text-sm text-secondary">Bem-vindo, {user.nome}</p>
       </div>
 

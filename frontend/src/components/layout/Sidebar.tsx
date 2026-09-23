@@ -1,5 +1,15 @@
 import clsx from 'clsx';
 import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  BarChart3,
+  CheckSquare,
+  Gift,
+  LayoutDashboard,
+  ListChecks,
+  Table2,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useIndicatorStore } from '../../store/indicatorStore';
 import { useUserStore } from '../../store/userStore';
@@ -13,6 +23,7 @@ import {
 interface NavItem {
   label: string;
   path: string;
+  icon: LucideIcon;
   badge?: number;
 }
 
@@ -53,33 +64,33 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   let items: NavItem[];
   if (souGestorDepartamento) {
     items = [
-      { label: 'Meus Indicadores', path: '/dashboard' },
-      { label: 'Aprovações', path: '/aprovacoes', badge: pendentesAprovacao },
+      { label: 'Meus Indicadores', path: '/dashboard', icon: LayoutDashboard },
+      { label: 'Aprovações', path: '/aprovacoes', icon: CheckSquare, badge: pendentesAprovacao },
       // Gerente de Marketing também gerencia a Bonificação (fornecedor/valor/
       // participantes) — ver ehGerenteDeMarketing e BonificacaoPage.
-      ...(ehGerenteDeMarketing(user) ? [{ label: 'Bonificação', path: '/bonificacao' }] : []),
+      ...(ehGerenteDeMarketing(user) ? [{ label: 'Bonificação', path: '/bonificacao', icon: Gift }] : []),
     ];
   } else if (COLABORADOR_TIER_ROLES.includes(user.role)) {
-    items = [{ label: 'Meus Indicadores', path: '/dashboard' }];
+    items = [{ label: 'Meus Indicadores', path: '/dashboard', icon: LayoutDashboard }];
   } else if (user.role === 'MASTER') {
     items = [
-      { label: 'Visão Geral', path: '/dashboard' },
-      { label: 'Todos Indicadores', path: '/indicadores' },
-      { label: 'Aprovações', path: '/aprovacoes', badge: pendentesAprovacao },
-      { label: 'Relatórios', path: '/relatorios' },
-      { label: 'Tabelas', path: '/ppr' },
-      { label: 'Usuários', path: '/usuarios' },
-      { label: 'Bonificação', path: '/bonificacao' },
+      { label: 'Visão Geral', path: '/dashboard', icon: LayoutDashboard },
+      { label: 'Todos Indicadores', path: '/indicadores', icon: ListChecks },
+      { label: 'Aprovações', path: '/aprovacoes', icon: CheckSquare, badge: pendentesAprovacao },
+      { label: 'Relatórios', path: '/relatorios', icon: BarChart3 },
+      { label: 'Tabelas', path: '/ppr', icon: Table2 },
+      { label: 'Usuários', path: '/usuarios', icon: Users },
+      { label: 'Bonificação', path: '/bonificacao', icon: Gift },
     ];
   } else {
     items = [
-      { label: 'Visão Geral', path: '/dashboard' },
-      { label: 'Todos Indicadores', path: '/indicadores' },
-      { label: 'Aprovações', path: '/aprovacoes', badge: pendentesAprovacao },
-      { label: 'Relatórios', path: '/relatorios' },
-      { label: 'Tabelas', path: '/ppr' },
-      { label: 'Usuários', path: '/usuarios' },
-      { label: 'Bonificação', path: '/bonificacao' },
+      { label: 'Visão Geral', path: '/dashboard', icon: LayoutDashboard },
+      { label: 'Todos Indicadores', path: '/indicadores', icon: ListChecks },
+      { label: 'Aprovações', path: '/aprovacoes', icon: CheckSquare, badge: pendentesAprovacao },
+      { label: 'Relatórios', path: '/relatorios', icon: BarChart3 },
+      { label: 'Tabelas', path: '/ppr', icon: Table2 },
+      { label: 'Usuários', path: '/usuarios', icon: Users },
+      { label: 'Bonificação', path: '/bonificacao', icon: Gift },
     ];
   }
 
@@ -103,6 +114,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <ul className="flex flex-col gap-1 p-4">
           {items.map((item) => {
             const active = location.pathname === item.path;
+            const Icon = item.icon;
             return (
               <li key={item.path}>
                 <button
@@ -113,7 +125,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     active ? 'bg-primary/10 text-primary' : 'text-secondary hover:bg-gray-50',
                   )}
                 >
-                  {item.label}
+                  <span className="flex items-center gap-2.5">
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {item.label}
+                  </span>
                   {!!item.badge && (
                     <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-semibold text-white">
                       {item.badge}
