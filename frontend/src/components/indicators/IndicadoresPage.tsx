@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, ListChecks, Plus, Upload } from 'lucide-react';
 import { useIndicatorStore } from '../../store/indicatorStore';
@@ -7,13 +7,19 @@ import ColaboradorIndicadoresGroup from './ColaboradorIndicadoresGroup';
 import EditIndicadorModal from './EditIndicadorModal';
 import MudarResponsavelModal from './MudarResponsavelModal';
 import HistoricoModal from './HistoricoModal';
-import ImportPlanilhaModal from './ImportPlanilhaModal';
 import Button from '../common/Button';
+import ModalLoadingFallback from '../common/ModalLoadingFallback';
 import { Input, Select } from '../common/Input';
 import { OPCOES_CARDS_POR_PAGINA, STATUS_META, STATUS_OPTIONS } from '../../utils/constants';
 import { downloadCSV, toCSV } from '../../utils/csv';
 import { getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
 import type { Indicador } from '../../types';
+
+// Carregado só quando o modal é aberto — arrasta a lib de planilha (xlsx),
+// pesada, junto (ver utils/xlsx.ts). Fora do bundle principal, ela não
+// concorre pelo tempo de parse/compilação do navegador na carga da página
+// nem no clique de outros botões desta tela.
+const ImportPlanilhaModal = lazy(() => import('./ImportPlanilhaModal'));
 
 const SAFRAS = listSafras();
 
@@ -256,7 +262,11 @@ export default function IndicadoresPage() {
       <EditIndicadorModal isOpen={!!editando} onClose={() => setEditando(null)} indicador={editando} />
       <EditIndicadorModal isOpen={criando} onClose={() => setCriando(false)} indicador={null} />
       <MudarResponsavelModal isOpen={!!reatribuindo} onClose={() => setReatribuindo(null)} indicador={reatribuindo} />
-      <ImportPlanilhaModal isOpen={importando} onClose={() => setImportando(false)} />
+      {importando && (
+        <Suspense fallback={<ModalLoadingFallback />}>
+          <ImportPlanilhaModal isOpen onClose={() => setImportando(false)} />
+        </Suspense>
+      )}
       <HistoricoModal
         isOpen={!!indicadorHistorico}
         onClose={() => setHistoricoId(null)}

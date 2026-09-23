@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Plus, Upload, Users } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
@@ -9,11 +9,15 @@ import { useIndicatorStore } from '../../store/indicatorStore';
 import UsuarioModal from './UsuarioModal';
 import UsuarioCard from './UsuarioCard';
 import UsuarioDetalhesModal from './UsuarioDetalhesModal';
-import ImportUsuariosModal from './ImportUsuariosModal';
 import Button from '../common/Button';
+import ModalLoadingFallback from '../common/ModalLoadingFallback';
 import ConfirmModal from '../common/ConfirmModal';
 import { Input, Select } from '../common/Input';
 import type { User } from '../../types';
+
+// Carregado só quando o modal é aberto — arrasta a lib de planilha (xlsx),
+// pesada, junto (ver utils/xlsx.ts).
+const ImportUsuariosModal = lazy(() => import('./ImportUsuariosModal'));
 
 export default function UsuariosPage() {
   const users = useUserStore((s) => s.users);
@@ -164,7 +168,11 @@ export default function UsuariosPage() {
 
       <UsuarioModal isOpen={criando} onClose={() => setCriando(false)} />
       <UsuarioModal isOpen={!!editando} usuario={editando} onClose={() => setEditando(null)} />
-      <ImportUsuariosModal isOpen={importando} onClose={() => setImportando(false)} />
+      {importando && (
+        <Suspense fallback={<ModalLoadingFallback />}>
+          <ImportUsuariosModal isOpen onClose={() => setImportando(false)} />
+        </Suspense>
+      )}
       <UsuarioDetalhesModal
         isOpen={!!detalhando}
         usuario={detalhando}

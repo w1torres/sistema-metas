@@ -1,15 +1,19 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircle2, Circle, Gift, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { useBonificacaoStore } from '../../store/bonificacaoStore';
 import { useAuthStore } from '../../store/authStore';
 import BonificacaoModal from './BonificacaoModal';
-import ImportNotasModal from './ImportNotasModal';
 import Button from '../common/Button';
 import ConfirmModal from '../common/ConfirmModal';
+import ModalLoadingFallback from '../common/ModalLoadingFallback';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { podeGerenciarBonificacao } from '../../utils/constants';
 import type { Bonificacao } from '../../types';
+
+// Carregado só quando o modal é aberto — arrasta a lib de planilha (xlsx),
+// pesada, junto (ver utils/xlsx.ts).
+const ImportNotasModal = lazy(() => import('./ImportNotasModal'));
 
 interface ResumoColaborador {
   usuarioId: string;
@@ -355,7 +359,11 @@ export default function BonificacaoPage() {
         )}
       </div>
 
-      <ImportNotasModal isOpen={importandoNotas} onClose={() => setImportandoNotas(false)} />
+      {importandoNotas && (
+        <Suspense fallback={<ModalLoadingFallback />}>
+          <ImportNotasModal isOpen onClose={() => setImportandoNotas(false)} />
+        </Suspense>
+      )}
       <BonificacaoModal isOpen={criando} onClose={() => setCriando(false)} bonificacao={null} />
       <BonificacaoModal isOpen={!!editando} onClose={() => setEditando(null)} bonificacao={editando} />
       <ConfirmModal
