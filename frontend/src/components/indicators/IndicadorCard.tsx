@@ -92,7 +92,10 @@ export default function IndicadorCard({
         </span>
       </div>
 
-      {indicador.detalhamento && <p className="text-xs text-secondary">{indicador.detalhamento}</p>}
+      {/* Só a descrição (objetivo) — "detalhamento" pode trazer texto técnico
+          concatenado no import (Tabela de Atingimento, Observação/Sinalização),
+          que fica só em "Ver mais informações" (IndicadorDetalhesModal). */}
+      {indicador.objetivo && <p className="text-xs text-secondary">{indicador.objetivo}</p>}
 
       {isConcluido && (
         <div className="flex flex-wrap items-center gap-2">
