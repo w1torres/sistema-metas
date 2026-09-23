@@ -82,7 +82,7 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
   const statusControladoPeloFluxo = !!indicador && !STATUS_EDIT_OPTIONS.includes(indicador.status);
   const safraSelecionada = findSafraById(SAFRAS, form.safraId);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!currentUser || !safraSelecionada) return;
 
     const nomeError = validateNome(form.nome);
@@ -105,40 +105,33 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
     const departamento = departments.find((d) => d.id === form.departamento_id)!;
     const responsavel = users.find((u) => u.id === form.usuario_responsavel_id)!;
 
-    if (isCreating) {
-      createIndicador(
-        {
+    try {
+      if (isCreating) {
+        await createIndicador({
           nome: form.nome,
           peso,
           departamento_id: departamento.id,
-          departamento: departamento.nome,
           usuario_responsavel_id: responsavel.id,
-          responsavel: responsavel.nome,
           objetivo: form.objetivo,
           data_inicio: safraSelecionada.dataInicio,
           data_fim: safraSelecionada.dataFim,
-        },
-        currentUser.id,
-        currentUser.nome,
-      );
-      toast.success('Indicador criado com sucesso!');
-    } else {
-      updateIndicador(
-        indicador.id,
-        {
+        });
+        toast.success('Indicador criado com sucesso!');
+      } else {
+        await updateIndicador(indicador.id, {
           nome: form.nome,
           peso,
           status: form.status,
           objetivo: form.objetivo,
           data_inicio: safraSelecionada.dataInicio,
           data_fim: safraSelecionada.dataFim,
-        },
-        currentUser.id,
-        currentUser.nome,
-      );
-      toast.success('Indicador atualizado com sucesso!');
+        });
+        toast.success('Indicador atualizado com sucesso!');
+      }
+      onClose();
+    } catch {
+      toast.error(isCreating ? 'Não foi possível criar o indicador.' : 'Não foi possível atualizar o indicador.');
     }
-    onClose();
   }
 
   function handleDelete() {
@@ -146,12 +139,17 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
     setConfirmandoExclusao(true);
   }
 
-  function confirmarExclusao() {
+  async function confirmarExclusao() {
     if (!indicador) return;
-    deleteIndicador(indicador.id);
-    toast.success('Indicador removido.');
-    setConfirmandoExclusao(false);
-    onClose();
+    try {
+      await deleteIndicador(indicador.id);
+      toast.success('Indicador removido.');
+      setConfirmandoExclusao(false);
+      onClose();
+    } catch {
+      toast.error('Não foi possível excluir o indicador.');
+      setConfirmandoExclusao(false);
+    }
   }
 
   return (

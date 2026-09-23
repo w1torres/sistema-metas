@@ -207,6 +207,7 @@ export default function AprovacoesPage() {
     notaConclusaoAtual,
     observacaoGestor,
     historyFor,
+    fetchHistorico,
   } = useIndicatorStore();
   const users = useUserStore((s) => s.users);
   const [historicoId, setHistoricoId] = useState<string | null>(null);
@@ -379,27 +380,31 @@ export default function AprovacoesPage() {
   const currentUser = user;
   const indicadorHistorico = indicators.find((i) => i.id === historicoId) ?? null;
 
-  const handleConfirmarAprovacao = (observacao: string, percentualAtingido?: number) => {
+  const handleConfirmarAprovacao = async (observacao: string) => {
     if (!aprovando) return;
     const { indicador, etapa, mes } = aprovando;
 
-    if (etapa === 'GESTOR') {
-      aprovarGestor(indicador.id, currentUser.id, currentUser.nome, observacao, percentualAtingido);
-      toast.success(`Conclusão de "${indicador.nome}" aprovada — enviada para avaliação final do RH.`);
-    } else if (etapa === 'MES' && mes) {
-      aprovarMes(indicador.id, mes, currentUser.id, currentUser.nome, observacao);
-      toast.success(`Mês ${formatMes(mes)} de "${indicador.nome}" aprovado.`);
-    } else if (etapa === 'FINAL') {
-      validarPeriodoFinal(indicador.id, currentUser.id, currentUser.nome, observacao);
-      toast.success(`"${indicador.nome}" concluído! O peso já conta para o colaborador.`);
-    } else {
-      aprovarRH(indicador.id, currentUser.id, currentUser.nome, observacao);
-      toast.success(`"${indicador.nome}" concluído! O peso já conta para o colaborador.`);
+    try {
+      if (etapa === 'GESTOR') {
+        await aprovarGestor(indicador.id, observacao);
+        toast.success(`Conclusão de "${indicador.nome}" aprovada — enviada para avaliação final do RH.`);
+      } else if (etapa === 'MES' && mes) {
+        aprovarMes(indicador.id, mes, currentUser.id, currentUser.nome, observacao);
+        toast.success(`Mês ${formatMes(mes)} de "${indicador.nome}" aprovado.`);
+      } else if (etapa === 'FINAL') {
+        validarPeriodoFinal(indicador.id, currentUser.id, currentUser.nome, observacao);
+        toast.success(`"${indicador.nome}" concluído! O peso já conta para o colaborador.`);
+      } else {
+        await aprovarRH(indicador.id, observacao);
+        toast.success(`"${indicador.nome}" concluído! O peso já conta para o colaborador.`);
+      }
+      setAprovando(null);
+    } catch {
+      toast.error('Não foi possível registrar a aprovação.');
     }
-    setAprovando(null);
   };
 
-  const handleConfirmarRejeicao = (motivo: string) => {
+  const handleConfirmarRejeicao = async (motivo: string) => {
     if (!rejeitando) return;
     const { indicador, etapa, mes } = rejeitando;
     const motivoFinal =
@@ -410,15 +415,19 @@ export default function AprovacoesPage() {
           ? 'Mês rejeitado pelo gestor do departamento'
           : 'Rejeitado pelo RH na avaliação final');
 
-    if (etapa === 'GESTOR') {
-      rejeitarGestor(indicador.id, currentUser.id, currentUser.nome, motivoFinal);
-    } else if (etapa === 'MES' && mes) {
-      rejeitarMes(indicador.id, mes, currentUser.id, currentUser.nome, motivoFinal);
-    } else {
-      rejeitarRH(indicador.id, currentUser.id, currentUser.nome, motivoFinal);
+    try {
+      if (etapa === 'GESTOR') {
+        await rejeitarGestor(indicador.id, motivoFinal);
+      } else if (etapa === 'MES' && mes) {
+        rejeitarMes(indicador.id, mes, currentUser.id, currentUser.nome, motivoFinal);
+      } else {
+        await rejeitarRH(indicador.id, motivoFinal);
+      }
+      toast.success('Solicitação rejeitada — o colaborador foi notificado.');
+      setRejeitando(null);
+    } catch {
+      toast.error('Não foi possível registrar a rejeição.');
     }
-    toast.success('Solicitação rejeitada — o colaborador foi notificado.');
-    setRejeitando(null);
   };
 
   function handleAprovarItem(item: ItemPendente) {
@@ -542,7 +551,10 @@ export default function AprovacoesPage() {
             podeAprovar={podeAprovar}
             onAprovar={handleAprovarItem}
             onRejeitar={handleRejeitarItem}
-            onVerHistorico={(indicador) => setHistoricoId(indicador.id)}
+            onVerHistorico={(indicador) => {
+              setHistoricoId(indicador.id);
+              fetchHistorico(indicador.id).catch(() => {});
+            }}
           />
         )}
       </Modal>

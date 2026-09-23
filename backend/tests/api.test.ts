@@ -195,13 +195,17 @@ describe('Fluxo de aprovação em 2 etapas', () => {
       .send({ nota: 'Concluí a tarefa' });
     expect(solicitar.status).toBe(200);
     expect(solicitar.body.data.status).toBe('AGUARDANDO_APROVACAO');
+    // Embutido na resposta — o frontend usa isso pra mostrar a nota do
+    // colaborador direto no card, sem buscar o histórico completo.
+    expect(solicitar.body.data.nota_conclusao_atual).toBe('Concluí a tarefa');
 
     const aprovaGestor = await request(app)
       .patch(`/api/indicators/${fx.indicadorId}/approve`)
       .set('Authorization', `Bearer ${gestor.token}`)
-      .send({ aprovado: true });
+      .send({ aprovado: true, observacao: 'Confere com a evidência anexada' });
     expect(aprovaGestor.status).toBe(200);
     expect(aprovaGestor.body.data.status).toBe('AGUARDANDO_RH');
+    expect(aprovaGestor.body.data.observacao_gestor).toBe('Confere com a evidência anexada');
 
     const aprovaMaster = await request(app)
       .patch(`/api/indicators/${fx.indicadorId}/approve`)
@@ -216,6 +220,73 @@ describe('Fluxo de aprovação em 2 etapas', () => {
       .set('Authorization', `Bearer ${master.token}`);
     const aprovacaoFinal = historico.body.data.find((h: { tipo_alteracao: string }) => h.tipo_alteracao === 'APROVACAO_RH');
     expect(aprovacaoFinal.observacao).toBe('Validado conforme critérios');
+  });
+});
+
+describe('Edição direta de status', () => {
+  it('MASTER pode marcar EM_ANDAMENTO/ATRASADO/PAUSADO na edição livre, mas não CONCLUIDO', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+    const criar = await request(app)
+      .post('/api/indicators')
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({
+        usuario_responsavel_id: fx.colabAdmId,
+        nome: 'Indicador Status Manual',
+        peso: 10,
+        data_inicio: '2026-01-01',
+        data_fim: '2026-12-31',
+      });
+    const id = criar.body.data.id;
+
+    const marcarAtrasado = await request(app)
+      .put(`/api/indicators/${id}`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ status: 'ATRASADO' });
+    expect(marcarAtrasado.status).toBe(200);
+    expect(marcarAtrasado.body.data.status).toBe('ATRASADO');
+
+    const tentaConcluir = await request(app)
+      .put(`/api/indicators/${id}`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .send({ status: 'CONCLUIDO' });
+    expect(tentaConcluir.status).toBe(400);
+  });
+});
+
+describe('Anexos', () => {
+  it('anexa um arquivo, lista, baixa e remove', async () => {
+    const { token: masterToken } = await login(fx.masterEmail);
+
+    const upload = await request(app)
+      .post(`/api/indicators/${fx.indicadorId}/attachments`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .attach('file', Buffer.from('conteúdo de teste'), { filename: 'comprovante.txt', contentType: 'text/plain' });
+    expect(upload.status).toBe(201);
+    // bigint no Postgres — sem a conversão em repository.ts, viria como string.
+    expect(typeof upload.body.data.tamanho_bytes).toBe('number');
+    const attachmentId = upload.body.data.id;
+
+    const listar = await request(app)
+      .get(`/api/indicators/${fx.indicadorId}/attachments`)
+      .set('Authorization', `Bearer ${masterToken}`);
+    expect(listar.body.data.some((a: { id: string }) => a.id === attachmentId)).toBe(true);
+
+    // Embutido na resposta do próprio indicador (json_agg) — ver repository.ts.
+    const indicador = await request(app)
+      .get(`/api/indicators/${fx.indicadorId}`)
+      .set('Authorization', `Bearer ${masterToken}`);
+    expect(indicador.body.data.anexos.some((a: { id: string }) => a.id === attachmentId)).toBe(true);
+
+    const baixar = await request(app)
+      .get(`/api/indicators/${fx.indicadorId}/attachments/${attachmentId}/download`)
+      .set('Authorization', `Bearer ${masterToken}`);
+    expect(baixar.status).toBe(200);
+    expect(baixar.text).toBe('conteúdo de teste');
+
+    const remover = await request(app)
+      .delete(`/api/indicators/${fx.indicadorId}/attachments/${attachmentId}`)
+      .set('Authorization', `Bearer ${masterToken}`);
+    expect(remover.status).toBe(204);
   });
 });
 

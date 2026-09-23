@@ -108,6 +108,13 @@ export interface Indicador {
   forma_medicao: string | null;
   evidencia_obrigatoria: string | null;
   tabela_atingimento: FaixaAtingimento[] | null;
+  // Embutidos na listagem/detalhe (subquery em repository.ts) — evita o
+  // frontend ter que buscar o histórico completo só pra mostrar a nota do
+  // colaborador e a observação do gestor no card do indicador.
+  nota_conclusao_atual?: string | null;
+  observacao_gestor?: string | null;
+  observacao_rh?: string | null;
+  anexos?: Attachment[];
 }
 
 export interface IndicadorUpdate {

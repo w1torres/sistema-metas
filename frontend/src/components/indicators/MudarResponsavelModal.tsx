@@ -42,18 +42,22 @@ export default function MudarResponsavelModal({ isOpen, onClose, indicador }: Mu
     onClose();
   }
 
-  function handleReatribuir() {
+  async function handleReatribuir() {
     if (!currentUser || !indicador) return;
     const novoResponsavel = users.find((u) => u.id === selecionado);
     if (!novoResponsavel) return;
 
-    reatribuir(indicador.id, novoResponsavel.id, novoResponsavel.nome, currentUser.id, currentUser.nome, motivo || undefined);
-    toast.success(
-      notificar
-        ? `Indicador reatribuído para ${novoResponsavel.nome}. Notificação enviada (simulada).`
-        : `Indicador reatribuído para ${novoResponsavel.nome}.`,
-    );
-    handleClose();
+    try {
+      await reatribuir(indicador.id, novoResponsavel.id, motivo || undefined);
+      toast.success(
+        notificar
+          ? `Indicador reatribuído para ${novoResponsavel.nome}. Notificação enviada (simulada).`
+          : `Indicador reatribuído para ${novoResponsavel.nome}.`,
+      );
+      handleClose();
+    } catch {
+      toast.error('Não foi possível reatribuir o indicador.');
+    }
   }
 
   return (

@@ -24,6 +24,29 @@ const SELECT_COLUMNS = [
   'indicadores.forma_medicao',
   'indicadores.evidencia_obrigatoria',
   'indicadores.tabela_atingimento',
+  // Última nota/observação de cada tipo, embutida direto na listagem — ver
+  // comentário do campo em types/index.ts.
+  db.raw(`(
+    SELECT motivo FROM indicador_updates
+    WHERE indicador_id = indicadores.id AND tipo_alteracao = 'SOLICITACAO_CONCLUSAO'
+    ORDER BY criado_em DESC LIMIT 1
+  ) as nota_conclusao_atual`),
+  db.raw(`(
+    SELECT observacao FROM indicador_updates
+    WHERE indicador_id = indicadores.id AND tipo_alteracao = 'APROVACAO_GESTOR'
+    ORDER BY criado_em DESC LIMIT 1
+  ) as observacao_gestor`),
+  db.raw(`(
+    SELECT observacao FROM indicador_updates
+    WHERE indicador_id = indicadores.id AND tipo_alteracao = 'APROVACAO_RH'
+    ORDER BY criado_em DESC LIMIT 1
+  ) as observacao_rh`),
+  // Anexos embutidos (json_agg) — evita uma chamada extra por indicador só
+  // pra saber se/quais anexos existem numa listagem.
+  db.raw(`(
+    SELECT COALESCE(json_agg(a.* ORDER BY a.criado_em DESC), '[]'::json)
+    FROM attachments a WHERE a.indicador_id = indicadores.id
+  ) as anexos`),
 ];
 
 function baseQuery() {
@@ -126,6 +149,7 @@ type UpdatableFields = Partial<
     Indicador,
     | 'nome'
     | 'peso'
+    | 'status'
     | 'objetivo'
     | 'detalhamento'
     | 'data_inicio'
@@ -224,6 +248,14 @@ export async function notaConclusaoAtual(indicadorId: string): Promise<string | 
 
 // --- Anexos ---------------------------------------------------------------
 
+// tamanho_bytes é bigint — o driver pg devolve como string (evita perda de
+// precisão acima de Number.MAX_SAFE_INTEGER); convertido aqui pra bater com
+// o tipo declarado (Attachment.tamanho_bytes: number), mesmo padrão de
+// Number(...) já usado em ppr/repository.ts e bonificacoes/repository.ts.
+function mapAttachment(row: any): Attachment {
+  return { ...row, tamanho_bytes: row.tamanho_bytes === null ? null : Number(row.tamanho_bytes) };
+}
+
 export async function addAttachment(input: {
   indicador_id: string;
   usuario_id: string;
@@ -242,15 +274,17 @@ export async function addAttachment(input: {
       tamanho_bytes: input.tamanho_bytes ?? null,
     })
     .returning('*');
-  return row;
+  return mapAttachment(row);
 }
 
 export async function listAttachments(indicadorId: string): Promise<Attachment[]> {
-  return db('attachments').where('indicador_id', indicadorId).orderBy('criado_em', 'desc');
+  const rows = await db('attachments').where('indicador_id', indicadorId).orderBy('criado_em', 'desc');
+  return rows.map(mapAttachment);
 }
 
 export async function findAttachment(id: string): Promise<Attachment | undefined> {
-  return db('attachments').where('id', id).first();
+  const row = await db('attachments').where('id', id).first();
+  return row ? mapAttachment(row) : undefined;
 }
 
 export async function removeAttachment(id: string): Promise<void> {

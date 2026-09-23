@@ -35,6 +35,7 @@ export default function DashboardColaborador() {
     addAnexo,
     removeAnexo,
     historyFor,
+    fetchHistorico,
     notaConclusaoAtual,
     observacaoRH,
     percentualGestorAtingido,
@@ -161,15 +162,20 @@ export default function DashboardColaborador() {
               }}
               onAbrirSolicitacao={() => setSolicitandoId(indicador.id)}
               onCancelarSolicitacao={() => {
-                cancelarSolicitacao(indicador.id, user.id, user.nome);
-                toast.success('Solicitação de conclusão cancelada.');
+                cancelarSolicitacao(indicador.id)
+                  .then(() => toast.success('Solicitação de conclusão cancelada.'))
+                  .catch(() => toast.error('Não foi possível cancelar a solicitação.'));
               }}
               onDesfazerConclusao={() => {
-                desfazerConclusao(indicador.id, user.id, user.nome);
-                toast.success('Marca de conclusão removida.');
+                desfazerConclusao(indicador.id)
+                  .then(() => toast.success('Marca de conclusão removida.'))
+                  .catch(() => toast.error('Não foi possível desfazer a conclusão.'));
               }}
               onAnexar={() => setAnexarId(indicador.id)}
-              onHistorico={() => setHistoricoId(indicador.id)}
+              onHistorico={() => {
+                setHistoricoId(indicador.id);
+                fetchHistorico(indicador.id).catch(() => {});
+              }}
             />
           ))}
         </div>
@@ -186,8 +192,9 @@ export default function DashboardColaborador() {
         onClose={() => setSolicitandoId(null)}
         indicadorNome={indicadorSolicitando?.nome ?? ''}
         onConfirmar={(nota) => {
-          solicitarConclusao(indicadorSolicitando!.id, user.id, user.nome, nota);
-          toast.success('Solicitação enviada para aprovação do gestor do departamento.');
+          solicitarConclusao(indicadorSolicitando!.id, nota)
+            .then(() => toast.success('Solicitação enviada para aprovação do gestor do departamento.'))
+            .catch(() => toast.error('Não foi possível enviar a solicitação.'));
           setSolicitandoId(null);
         }}
       />
@@ -195,9 +202,11 @@ export default function DashboardColaborador() {
       <AnexarDocumentoModal
         isOpen={!!indicadorAnexar}
         onClose={() => setAnexarId(null)}
-        onAnexar={(anexo) => addAnexo(indicadorAnexar!.id, anexo, user.id, user.nome)}
+        onAnexar={(file, descricao) => addAnexo(indicadorAnexar!.id, file, descricao)}
         anexosExistentes={indicadorAnexar?.anexos ?? []}
-        onRemover={(anexoId) => removeAnexo(indicadorAnexar!.id, anexoId)}
+        onRemover={(anexoId) =>
+          removeAnexo(indicadorAnexar!.id, anexoId).catch(() => toast.error('Não foi possível remover o anexo.'))
+        }
       />
 
       <HistoricoModal

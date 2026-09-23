@@ -1,4 +1,17 @@
-import type { Bonificacao, BonificacaoParticipante, Departamento, MinhaBonificacao, PilarPeso, PPRFaixa, Trilha, User } from '../types';
+import type {
+  Attachment,
+  Bonificacao,
+  BonificacaoParticipante,
+  Departamento,
+  Indicador,
+  IndicadorStatus,
+  IndicadorUpdate,
+  MinhaBonificacao,
+  PilarPeso,
+  PPRFaixa,
+  Trilha,
+  User,
+} from '../types';
 
 // Formato exato de app/src/types/index.ts (backend) — nomes de campo em
 // snake_case/português vindos do banco, alguns diferentes do shape do
@@ -194,4 +207,142 @@ export interface AtingimentoFaixa {
 
 export function mapAtingimentoFaixa(f: BackendAtingimentoFaixa): AtingimentoFaixa {
   return { id: f.id, faixaMin: f.faixa_min, faixaMax: f.faixa_max, percentualPeso: f.percentual_peso };
+}
+
+// --- Indicadores -----------------------------------------------------------
+
+// O backend nomeia os 2 status de aprovação diferente do frontend (herdado
+// de antes da integração real) — traduzido só aqui, pra não precisar mudar
+// toda comparação `status === 'AGUARDANDO_APROVACAO_GESTOR'` já espalhada
+// pelas telas (Sidebar, AprovacoesPage, IndicadorCard, etc.).
+const STATUS_BACKEND_PARA_FRONTEND: Record<string, IndicadorStatus> = {
+  AGUARDANDO_APROVACAO: 'AGUARDANDO_APROVACAO_GESTOR',
+  AGUARDANDO_RH: 'AGUARDANDO_APROVACAO_RH',
+};
+
+function mapIndicadorStatus(status: string): IndicadorStatus {
+  return (STATUS_BACKEND_PARA_FRONTEND[status] ?? status) as IndicadorStatus;
+}
+
+export interface BackendAttachment {
+  id: string;
+  indicador_id: string;
+  usuario_id: string;
+  nome_arquivo: string;
+  url: string;
+  tipo_mime: string | null;
+  // bigint no Postgres — o driver pg devolve como string (evita perda de
+  // precisão acima de Number.MAX_SAFE_INTEGER), nunca um number de verdade.
+  tamanho_bytes: string | number | null;
+  descricao: string | null;
+  criado_em: string;
+}
+
+// `url` do backend é o caminho em disco do servidor (armazenamento local) —
+// nunca exposto como está; o frontend baixa pelo endpoint autenticado
+// (ver apiClient.downloadFile) usando indicadorId+attachmentId, não essa URL.
+export function mapAttachment(a: BackendAttachment): Attachment {
+  return {
+    id: a.id,
+    nome_arquivo: a.nome_arquivo,
+    url: `/indicators/${a.indicador_id}/attachments/${a.id}/download`,
+    tipo_mime: a.tipo_mime ?? '',
+    tamanho_bytes: a.tamanho_bytes != null ? Number(a.tamanho_bytes) : 0,
+    descricao: a.descricao ?? undefined,
+    criado_em: a.criado_em,
+  };
+}
+
+export interface BackendIndicador {
+  id: string;
+  departamento_id: string;
+  departamento?: string;
+  usuario_responsavel_id: string;
+  responsavel?: string;
+  nome: string;
+  peso: number;
+  status: string;
+  atendimento: number;
+  detalhamento: string | null;
+  objetivo: string | null;
+  data_inicio: string;
+  data_fim: string;
+  concluido_em: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  funcao: string | null;
+  pilar: string | null;
+  meta: string | null;
+  forma_medicao: string | null;
+  evidencia_obrigatoria: string | null;
+  tabela_atingimento: { faixa: string; percentualPeso: number }[] | null;
+  nota_conclusao_atual?: string | null;
+  observacao_gestor?: string | null;
+  observacao_rh?: string | null;
+  anexos?: BackendAttachment[];
+}
+
+export function mapIndicador(i: BackendIndicador): Indicador {
+  return {
+    id: i.id,
+    departamento_id: i.departamento_id,
+    departamento: i.departamento ?? '',
+    usuario_responsavel_id: i.usuario_responsavel_id,
+    responsavel: i.responsavel ?? '',
+    nome: i.nome,
+    peso: i.peso,
+    status: mapIndicadorStatus(i.status),
+    atendimento: i.atendimento,
+    detalhamento: i.detalhamento ?? '',
+    objetivo: i.objetivo ?? '',
+    data_inicio: i.data_inicio,
+    data_fim: i.data_fim,
+    concluido_em: i.concluido_em,
+    criado_em: i.criado_em,
+    atualizado_em: i.atualizado_em,
+    anexos: (i.anexos ?? []).map(mapAttachment),
+    funcao: i.funcao ?? undefined,
+    pilar: i.pilar ?? undefined,
+    meta: i.meta ?? undefined,
+    formaMedicao: i.forma_medicao ?? undefined,
+    evidenciaObrigatoria: i.evidencia_obrigatoria ?? undefined,
+    tabelaAtingimento: i.tabela_atingimento ?? undefined,
+    notaConclusaoAtual: i.nota_conclusao_atual ?? null,
+    observacaoGestor: i.observacao_gestor ?? null,
+    observacaoRH: i.observacao_rh ?? null,
+  };
+}
+
+export interface BackendIndicadorUpdate {
+  id: string;
+  indicador_id: string;
+  usuario_alterou_id: string;
+  usuario_nome: string;
+  tipo_alteracao: IndicadorUpdate['tipo_alteracao'];
+  campo_alterado: string | null;
+  valor_anterior: unknown;
+  valor_novo: unknown;
+  motivo: string | null;
+  observacao?: string | null;
+  criado_em: string;
+}
+
+export function mapIndicadorUpdate(h: BackendIndicadorUpdate): IndicadorUpdate {
+  return {
+    id: h.id,
+    indicador_id: h.indicador_id,
+    usuario_alterou_id: h.usuario_alterou_id,
+    usuario_nome: h.usuario_nome,
+    tipo_alteracao: h.tipo_alteracao,
+    campo_alterado: h.campo_alterado,
+    valor_anterior: h.valor_anterior,
+    valor_novo: h.valor_novo,
+    motivo: h.motivo,
+    observacao: h.observacao ?? null,
+    // Nunca preenchido pelo backend (sem coluna própria) — a "Tabela de
+    // Atingimento" por indicador nunca chegou a ser exposta na tela de
+    // criação/edição, então esse valor nunca existe na prática.
+    percentualAtingido: null,
+    criado_em: h.criado_em,
+  };
 }

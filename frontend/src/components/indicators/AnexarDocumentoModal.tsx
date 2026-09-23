@@ -4,6 +4,7 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { Textarea } from '../common/Input';
 import type { Attachment } from '../../types';
+import { apiClient } from '../../api/client';
 import { validateFile } from '../../utils/validators';
 import { ACCEPTED_FILE_LABEL, ACCEPTED_FILE_TYPES } from '../../utils/constants';
 import { formatFileSize } from '../../utils/formatters';
@@ -11,7 +12,7 @@ import { formatFileSize } from '../../utils/formatters';
 interface AnexarDocumentoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAnexar: (anexo: Attachment) => void;
+  onAnexar: (file: File, descricao?: string) => Promise<void>;
   anexosExistentes?: Attachment[];
   onRemover?: (anexoId: string) => void;
 }
@@ -27,6 +28,7 @@ export default function AnexarDocumentoModal({
   const [file, setFile] = useState<File | null>(null);
   const [descricao, setDescricao] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
   function handleFileChange(f: File | null) {
     if (!f) {
@@ -50,25 +52,22 @@ export default function AnexarDocumentoModal({
     onClose();
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!file) {
       setError('Selecione um arquivo para anexar.');
       return;
     }
 
-    const anexo: Attachment = {
-      id: `att-${crypto.randomUUID().slice(0, 8)}`,
-      nome_arquivo: file.name,
-      url: '#',
-      tipo_mime: file.type,
-      tamanho_bytes: file.size,
-      descricao: descricao || undefined,
-      criado_em: new Date().toISOString(),
-    };
-
-    onAnexar(anexo);
-    toast.success('Arquivo anexado com sucesso!');
-    handleClose();
+    setEnviando(true);
+    try {
+      await onAnexar(file, descricao || undefined);
+      toast.success('Arquivo anexado com sucesso!');
+      handleClose();
+    } catch {
+      toast.error('Não foi possível anexar o arquivo.');
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
@@ -81,7 +80,7 @@ export default function AnexarDocumentoModal({
           <Button variant="secondary" onClick={handleClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit}>Anexar Arquivo</Button>
+          <Button onClick={handleSubmit} loading={enviando}>Anexar Arquivo</Button>
         </>
       }
     >
@@ -131,9 +130,17 @@ export default function AnexarDocumentoModal({
             <ul className="flex flex-col gap-2">
               {anexosExistentes.map((anexo) => (
                 <li key={anexo.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
-                  <span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      apiClient
+                        .downloadFile(anexo.url, anexo.nome_arquivo)
+                        .catch(() => toast.error('Não foi possível baixar o arquivo.'))
+                    }
+                    className="text-left hover:underline"
+                  >
                     📎 {anexo.nome_arquivo} <span className="text-secondary">({formatFileSize(anexo.tamanho_bytes)})</span>
-                  </span>
+                  </button>
                   {onRemover && (
                     <button
                       type="button"

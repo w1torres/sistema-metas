@@ -3,38 +3,47 @@ import type {
   Attachment,
   Indicador,
   IndicadorFilters,
-  IndicadorStatus,
   IndicadorUpdate,
   RegistroMensal,
-  TipoAlteracao,
 } from '../types';
-import mockData from '../data/mockData.json';
+import { apiClient } from '../api/client';
+import {
+  mapAttachment,
+  mapIndicador,
+  mapIndicadorUpdate,
+  type BackendAttachment,
+  type BackendIndicador,
+  type BackendIndicadorUpdate,
+} from '../api/mappers';
+import { useAuthStore } from './authStore';
 
 interface IndicatorState {
   indicators: Indicador[];
-  history: IndicadorUpdate[];
+  loading: boolean;
   filters: IndicadorFilters;
+  // Histórico por indicador, carregado sob demanda (ver fetchHistorico) —
+  // nunca teve fetch de todos de uma vez, seria pesado sem necessidade.
+  historicoCache: Record<string, IndicadorUpdate[]>;
 
   setFilters: (filters: Partial<IndicadorFilters>) => void;
   resetFilters: () => void;
 
-  solicitarConclusao: (id: string, userId: string, userNome: string, nota?: string) => void;
-  cancelarSolicitacao: (id: string, userId: string, userNome: string) => void;
-  aprovarGestor: (
-    id: string,
-    userId: string,
-    userNome: string,
-    observacao?: string,
-    percentualAtingido?: number,
-  ) => void;
-  rejeitarGestor: (id: string, userId: string, userNome: string, motivo: string) => void;
-  aprovarRH: (id: string, userId: string, userNome: string, observacao?: string) => void;
-  rejeitarRH: (id: string, userId: string, userNome: string, motivo: string) => void;
-  desfazerConclusao: (id: string, userId: string, userNome: string) => void;
+  fetchIndicadores: () => Promise<void>;
+  fetchHistorico: (indicadorId: string) => Promise<void>;
 
-  // Indicadores MENSAL: cada mês tem seu próprio ciclo colaborador -> gestor
-  // (sem RH); o RH/controller só entra para fechar o indicador de vez com
-  // validarPeriodoFinal, depois que o período termina.
+  solicitarConclusao: (id: string, nota?: string) => Promise<void>;
+  cancelarSolicitacao: (id: string) => Promise<void>;
+  aprovarGestor: (id: string, observacao?: string) => Promise<void>;
+  rejeitarGestor: (id: string, motivo: string) => Promise<void>;
+  aprovarRH: (id: string, observacao?: string) => Promise<void>;
+  rejeitarRH: (id: string, motivo: string) => Promise<void>;
+  desfazerConclusao: (id: string) => Promise<void>;
+
+  // Indicador MENSAL: nunca ficou alcançável pela tela de criação/import (o
+  // campo `periodicidade` nunca é setado em lugar nenhum), então o backend
+  // nunca chegou a ganhar suporte a isso — fica só local mesmo, sem persistir
+  // de verdade. Mantido pra não quebrar o código que já existe em volta
+  // (AprovacoesPage, IndicadorCard), caso um dia isso seja retomado.
   solicitarMes: (id: string, mes: string, userId: string, userNome: string, nota?: string) => void;
   aprovarMes: (id: string, mes: string, userId: string, userNome: string, observacao?: string) => void;
   rejeitarMes: (id: string, mes: string, userId: string, userNome: string, motivo: string) => void;
@@ -42,422 +51,275 @@ interface IndicatorState {
 
   updateIndicador: (
     id: string,
-    updates: Partial<Pick<Indicador, 'nome' | 'peso' | 'status' | 'atendimento' | 'objetivo' | 'detalhamento' | 'data_inicio' | 'data_fim'>>,
-    userId: string,
-    userNome: string,
-    motivo?: string,
-  ) => void;
-  reatribuir: (
-    id: string,
-    novoResponsavelId: string,
-    novoResponsavelNome: string,
-    userId: string,
-    userNome: string,
-    motivo?: string,
-  ) => void;
-  addAnexo: (id: string, anexo: Attachment, userId: string, userNome: string) => void;
-  removeAnexo: (id: string, anexoId: string) => void;
+    updates: Partial<Pick<Indicador, 'nome' | 'peso' | 'status' | 'objetivo' | 'detalhamento' | 'data_inicio' | 'data_fim'>>,
+  ) => Promise<void>;
+  reatribuir: (id: string, novoResponsavelId: string, motivo?: string) => Promise<void>;
+  addAnexo: (id: string, file: File, descricao?: string) => Promise<void>;
+  removeAnexo: (id: string, anexoId: string) => Promise<void>;
   createIndicador: (
-    data: Pick<Indicador, 'nome' | 'peso' | 'departamento_id' | 'departamento' | 'usuario_responsavel_id' | 'responsavel' | 'objetivo' | 'data_inicio' | 'data_fim'> &
+    data: Pick<Indicador, 'nome' | 'peso' | 'departamento_id' | 'usuario_responsavel_id' | 'objetivo' | 'data_inicio' | 'data_fim'> &
       Partial<Pick<Indicador, 'detalhamento' | 'pilar' | 'meta' | 'formaMedicao' | 'evidenciaObrigatoria'>>,
-    userId: string,
-    userNome: string,
-  ) => void;
-  deleteIndicador: (id: string) => void;
+  ) => Promise<Indicador>;
+  deleteIndicador: (id: string) => Promise<void>;
   historyFor: (indicadorId: string) => IndicadorUpdate[];
   notaConclusaoAtual: (indicadorId: string) => string | null;
   observacaoGestor: (indicadorId: string) => string | null;
   observacaoRH: (indicadorId: string) => string | null;
+  // Sem coluna própria no backend — a "Tabela de Atingimento" por indicador
+  // nunca ganhou UI de criação/edição, então esse valor nunca existe na
+  // prática. Mantido só pra não quebrar quem já lê esse selector.
   percentualGestorAtingido: (indicadorId: string) => number | null;
 }
 
 const defaultFilters: IndicadorFilters = { departamento: null, status: null, search: '' };
 
-function newId(prefix: string): string {
+function newLocalId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
-function pushHistory(
-  history: IndicadorUpdate[],
-  entry: Omit<IndicadorUpdate, 'id' | 'criado_em'>,
-): IndicadorUpdate[] {
-  return [
-    { ...entry, id: newId('upd'), criado_em: new Date().toISOString() },
-    ...history,
-  ];
+function substituirIndicador(indicators: Indicador[], atualizado: Indicador): Indicador[] {
+  return indicators.map((ind) => (ind.id === atualizado.id ? atualizado : ind));
 }
 
-export const useIndicatorStore = create<IndicatorState>((set, get) => {
-  function mudarStatus(
-    id: string,
-    statusOrigemValidos: IndicadorStatus[],
-    statusDestino: IndicadorStatus,
-    userId: string,
-    userNome: string,
-    tipoAlteracao: TipoAlteracao,
-    motivo: string | null,
-    extra?: Partial<Indicador>,
-    observacao?: string | null,
-    percentualAtingido?: number | null,
-  ): boolean {
-    const indicador = get().indicators.find((i) => i.id === id);
-    if (!indicador || !statusOrigemValidos.includes(indicador.status)) return false;
-    const now = new Date().toISOString();
+// Prepende no cache local de histórico (mesmo pro fluxo MENSAL, que nunca
+// chega a bater no backend — ver comentário da interface).
+function pushHistoricoLocal(
+  cache: Record<string, IndicadorUpdate[]>,
+  entry: Omit<IndicadorUpdate, 'id' | 'criado_em'>,
+): Record<string, IndicadorUpdate[]> {
+  const nova: IndicadorUpdate = { ...entry, id: newLocalId('upd'), criado_em: new Date().toISOString() };
+  return { ...cache, [entry.indicador_id]: [nova, ...(cache[entry.indicador_id] ?? [])] };
+}
 
+export const useIndicatorStore = create<IndicatorState>((set, get) => ({
+  indicators: [],
+  loading: false,
+  historicoCache: {},
+  filters: defaultFilters,
+
+  setFilters: (filters) => set((state) => ({ filters: { ...state.filters, ...filters } })),
+  resetFilters: () => set({ filters: defaultFilters }),
+
+  // COLABORADOR não tem acesso a GET /indicators (só ao próprio, em /me) —
+  // ver requireRole em backend/indicators/routes.ts.
+  fetchIndicadores: async () => {
+    set({ loading: true });
+    try {
+      const role = useAuthStore.getState().user?.role;
+      const path = role === 'COLABORADOR' ? '/indicators/me' : '/indicators';
+      const data = await apiClient.get<BackendIndicador[]>(path);
+      set({ indicators: data.map(mapIndicador), loading: false });
+    } catch (err) {
+      set({ loading: false });
+      throw err;
+    }
+  },
+
+  fetchHistorico: async (indicadorId) => {
+    const data = await apiClient.get<BackendIndicadorUpdate[]>(`/indicators/${indicadorId}/history`);
+    set((state) => ({ historicoCache: { ...state.historicoCache, [indicadorId]: data.map(mapIndicadorUpdate) } }));
+  },
+
+  solicitarConclusao: async (id, nota) => {
+    const atualizado = mapIndicador(await apiClient.patch<BackendIndicador>(`/indicators/${id}/complete`, { nota }));
+    set((state) => ({ indicators: substituirIndicador(state.indicators, atualizado) }));
+  },
+
+  cancelarSolicitacao: async (id) => {
+    const atualizado = mapIndicador(await apiClient.patch<BackendIndicador>(`/indicators/${id}/complete/cancelar`));
+    set((state) => ({ indicators: substituirIndicador(state.indicators, atualizado) }));
+  },
+
+  desfazerConclusao: async (id) => {
+    const atualizado = mapIndicador(await apiClient.patch<BackendIndicador>(`/indicators/${id}/complete/desfazer`));
+    set((state) => ({ indicators: substituirIndicador(state.indicators, atualizado) }));
+  },
+
+  aprovarGestor: async (id, observacao) => {
+    const atualizado = mapIndicador(
+      await apiClient.patch<BackendIndicador>(`/indicators/${id}/approve`, { aprovado: true, observacao }),
+    );
+    set((state) => ({ indicators: substituirIndicador(state.indicators, atualizado) }));
+  },
+
+  rejeitarGestor: async (id, motivo) => {
+    const atualizado = mapIndicador(
+      await apiClient.patch<BackendIndicador>(`/indicators/${id}/approve`, { aprovado: false, observacao: motivo }),
+    );
+    set((state) => ({ indicators: substituirIndicador(state.indicators, atualizado) }));
+  },
+
+  aprovarRH: async (id, observacao) => {
+    const atualizado = mapIndicador(
+      await apiClient.patch<BackendIndicador>(`/indicators/${id}/approve`, { aprovado: true, observacao }),
+    );
+    set((state) => ({ indicators: substituirIndicador(state.indicators, atualizado) }));
+  },
+
+  rejeitarRH: async (id, motivo) => {
+    const atualizado = mapIndicador(
+      await apiClient.patch<BackendIndicador>(`/indicators/${id}/approve`, { aprovado: false, observacao: motivo }),
+    );
+    set((state) => ({ indicators: substituirIndicador(state.indicators, atualizado) }));
+  },
+
+  // --- MENSAL: local-only, nunca alcançável pela UI de criação — ver comentário da interface. ---
+
+  solicitarMes: (id, mes, userId, userNome, nota) => {
+    const now = new Date().toISOString();
     set((state) => ({
-      indicators: state.indicators.map((ind) =>
-        ind.id === id ? { ...ind, status: statusDestino, atualizado_em: now, ...extra } : ind,
-      ),
-      history: pushHistory(state.history, {
+      indicators: state.indicators.map((ind) => {
+        if (ind.id !== id) return ind;
+        const registros = (ind.registrosMensais ?? []).filter((r) => r.mes !== mes);
+        const registro: RegistroMensal = { mes, status: 'AGUARDANDO_GESTOR', nota: nota?.trim() || null, enviado_em: now };
+        return { ...ind, registrosMensais: [...registros, registro], atualizado_em: now };
+      }),
+      historicoCache: pushHistoricoLocal(state.historicoCache, {
         indicador_id: id,
         usuario_alterou_id: userId,
         usuario_nome: userNome,
-        tipo_alteracao: tipoAlteracao,
-        campo_alterado: 'status',
-        valor_anterior: indicador.status,
-        valor_novo: statusDestino,
-        motivo,
-        observacao: observacao?.trim() ? observacao.trim() : null,
-        percentualAtingido: percentualAtingido ?? null,
+        tipo_alteracao: 'SOLICITACAO_CONCLUSAO',
+        campo_alterado: `mes:${mes}`,
+        valor_anterior: null,
+        valor_novo: 'AGUARDANDO_GESTOR',
+        motivo: nota?.trim() ? nota.trim() : `Colaborador enviou o mês ${mes} para avaliação`,
       }),
     }));
-    return true;
-  }
+  },
 
-  return {
-    indicators: mockData.indicators as Indicador[],
-    history: mockData.indicador_updates as IndicadorUpdate[],
-    filters: defaultFilters,
+  aprovarMes: (id, mes, userId, userNome, observacao) => {
+    const now = new Date().toISOString();
+    set((state) => ({
+      indicators: state.indicators.map((ind) => {
+        if (ind.id !== id) return ind;
+        const registros = (ind.registrosMensais ?? []).map((r) =>
+          r.mes === mes ? { ...r, status: 'APROVADO' as const, observacaoGestor: observacao?.trim() || null, aprovado_em: now } : r,
+        );
+        return { ...ind, registrosMensais: registros, atualizado_em: now };
+      }),
+      historicoCache: pushHistoricoLocal(state.historicoCache, {
+        indicador_id: id,
+        usuario_alterou_id: userId,
+        usuario_nome: userNome,
+        tipo_alteracao: 'APROVACAO_GESTOR',
+        campo_alterado: `mes:${mes}`,
+        valor_anterior: 'AGUARDANDO_GESTOR',
+        valor_novo: 'APROVADO',
+        motivo: `Mês ${mes} aprovado pelo gestor do departamento`,
+        observacao: observacao?.trim() ? observacao.trim() : null,
+      }),
+    }));
+  },
 
-    setFilters: (filters) => set((state) => ({ filters: { ...state.filters, ...filters } })),
-    resetFilters: () => set({ filters: defaultFilters }),
+  rejeitarMes: (id, mes, userId, userNome, motivo) => {
+    const now = new Date().toISOString();
+    set((state) => ({
+      indicators: state.indicators.map((ind) => {
+        if (ind.id !== id) return ind;
+        const registros = (ind.registrosMensais ?? []).filter((r) => r.mes !== mes);
+        return { ...ind, registrosMensais: registros, atualizado_em: now };
+      }),
+      historicoCache: pushHistoricoLocal(state.historicoCache, {
+        indicador_id: id,
+        usuario_alterou_id: userId,
+        usuario_nome: userNome,
+        tipo_alteracao: 'REJEICAO',
+        campo_alterado: `mes:${mes}`,
+        valor_anterior: 'AGUARDANDO_GESTOR',
+        valor_novo: 'PENDENTE',
+        motivo,
+      }),
+    }));
+  },
 
-    // Colaborador marca o checkbox: não conclui direto, entra na fila do gestor do departamento.
-    // A nota (o que o colaborador escreveu sobre a conclusão) fica registrada no histórico e é
-    // o que os gestores veem na tela de Aprovações.
-    solicitarConclusao: (id, userId, userNome, nota) => {
-      mudarStatus(
-        id,
-        ['EM_ANDAMENTO', 'ATRASADO'],
-        'AGUARDANDO_APROVACAO_GESTOR',
-        userId,
-        userNome,
-        'SOLICITACAO_CONCLUSAO',
-        nota?.trim() ? nota.trim() : 'Colaborador solicitou conclusão (sem observações)',
-      );
-    },
+  validarPeriodoFinal: (id, userId, userNome, observacao) => {
+    const now = new Date().toISOString();
+    set((state) => ({
+      indicators: state.indicators.map((ind) =>
+        ind.id === id ? { ...ind, status: 'CONCLUIDO', atendimento: 100, concluido_em: now, atualizado_em: now } : ind,
+      ),
+      historicoCache: pushHistoricoLocal(state.historicoCache, {
+        indicador_id: id,
+        usuario_alterou_id: userId,
+        usuario_nome: userNome,
+        tipo_alteracao: 'APROVACAO_RH',
+        campo_alterado: 'status',
+        valor_anterior: 'EM_ANDAMENTO',
+        valor_novo: 'CONCLUIDO',
+        motivo: 'Validação final do período aprovada pelo RH — indicador concluído',
+        observacao: observacao?.trim() ? observacao.trim() : null,
+      }),
+    }));
+  },
 
-    // Colaborador desiste antes do gestor avaliar
-    cancelarSolicitacao: (id, userId, userNome) => {
-      mudarStatus(
-        id,
-        ['AGUARDANDO_APROVACAO_GESTOR'],
-        'EM_ANDAMENTO',
-        userId,
-        userNome,
-        'EDICAO',
-        'Solicitação de conclusão cancelada pelo colaborador',
-      );
-    },
+  // --- fim MENSAL ---
 
-    // Gestor do departamento aprova: segue para avaliação final do RH. A
-    // observação (se houver) é dirigida a quem vai avaliar em seguida (RH),
-    // não ao colaborador — só aparece de novo para ele se o RH decidir
-    // repassar algo na aprovação final. Quando o indicador tem Tabela de
-    // Atingimento, `percentualAtingido` é o % do peso que o gestor marcou
-    // como resultado — fica pendente no indicador até o RH aprovar de vez
-    // (aprovarRH), quando vira o `atendimento` definitivo.
-    aprovarGestor: (id, userId, userNome, observacao, percentualAtingido) => {
-      mudarStatus(
-        id,
-        ['AGUARDANDO_APROVACAO_GESTOR'],
-        'AGUARDANDO_APROVACAO_RH',
-        userId,
-        userNome,
-        'APROVACAO_GESTOR',
-        'Aprovado pelo gestor do departamento',
-        { percentualAtingido: percentualAtingido ?? null },
-        observacao,
-        percentualAtingido,
-      );
-    },
+  updateIndicador: async (id, updates) => {
+    const payload: Record<string, unknown> = { ...updates };
+    const atualizado = mapIndicador(await apiClient.put<BackendIndicador>(`/indicators/${id}`, payload));
+    set((state) => ({ indicators: substituirIndicador(state.indicators, atualizado) }));
+  },
 
-    // Gestor do departamento rejeita: volta para o colaborador
-    rejeitarGestor: (id, userId, userNome, motivo) => {
-      mudarStatus(id, ['AGUARDANDO_APROVACAO_GESTOR'], 'EM_ANDAMENTO', userId, userNome, 'REJEICAO', motivo);
-    },
+  reatribuir: async (id, novoResponsavelId, motivo) => {
+    const atualizado = mapIndicador(
+      await apiClient.patch<BackendIndicador>(`/indicators/${id}/reatribuir`, {
+        usuario_responsavel_id: novoResponsavelId,
+        motivo,
+      }),
+    );
+    set((state) => ({ indicators: substituirIndicador(state.indicators, atualizado) }));
+  },
 
-    // RH dá a avaliação final: só agora conta o peso para o colaborador. A
-    // observação (se houver) é o que o colaborador vê no card dele. O
-    // `atendimento` definitivo é o percentual que o gestor marcou na Tabela
-    // de Atingimento (aprovarGestor); indicadores sem essa tabela continuam
-    // valendo 100% ao serem concluídos, como sempre.
-    aprovarRH: (id, userId, userNome, observacao) => {
-      const indicador = get().indicators.find((i) => i.id === id);
-      const now = new Date().toISOString();
-      mudarStatus(
-        id,
-        ['AGUARDANDO_APROVACAO_RH'],
-        'CONCLUIDO',
-        userId,
-        userNome,
-        'APROVACAO_RH',
-        'Aprovado pelo RH — indicador concluído',
-        { atendimento: indicador?.percentualAtingido ?? 100, concluido_em: now },
-        observacao,
-      );
-    },
+  addAnexo: async (id, file, descricao) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (descricao) form.append('descricao', descricao);
+    const anexo: Attachment = mapAttachment(
+      await apiClient.postForm<BackendAttachment>(`/indicators/${id}/attachments`, form),
+    );
+    set((state) => ({
+      indicators: state.indicators.map((ind) => (ind.id === id ? { ...ind, anexos: [...ind.anexos, anexo] } : ind)),
+    }));
+  },
 
-    // RH rejeita a avaliação final: volta para o colaborador refazer/reenviar
-    rejeitarRH: (id, userId, userNome, motivo) => {
-      mudarStatus(id, ['AGUARDANDO_APROVACAO_RH'], 'EM_ANDAMENTO', userId, userNome, 'REJEICAO', motivo);
-    },
+  removeAnexo: async (id, anexoId) => {
+    await apiClient.delete(`/indicators/${id}/attachments/${anexoId}`);
+    set((state) => ({
+      indicators: state.indicators.map((ind) =>
+        ind.id === id ? { ...ind, anexos: ind.anexos.filter((a) => a.id !== anexoId) } : ind,
+      ),
+    }));
+  },
 
-    // Colaborador desfaz uma conclusão já aprovada (não passa pelo fluxo de novo)
-    desfazerConclusao: (id, userId, userNome) => {
-      mudarStatus(id, ['CONCLUIDO'], 'EM_ANDAMENTO', userId, userNome, 'EDICAO', 'Marca de conclusão removida', {
-        atendimento: 0,
-        concluido_em: null,
-      });
-    },
+  createIndicador: async (data) => {
+    const payload = {
+      departamento_id: data.departamento_id || undefined,
+      usuario_responsavel_id: data.usuario_responsavel_id,
+      nome: data.nome,
+      peso: data.peso,
+      objetivo: data.objetivo,
+      detalhamento: data.detalhamento || null,
+      data_inicio: data.data_inicio,
+      data_fim: data.data_fim,
+      pilar: data.pilar || null,
+      meta: data.meta || null,
+      forma_medicao: data.formaMedicao || null,
+      evidencia_obrigatoria: data.evidenciaObrigatoria || null,
+    };
+    const criado = mapIndicador(await apiClient.post<BackendIndicador>('/indicators', payload));
+    set((state) => ({ indicators: [criado, ...state.indicators] }));
+    return criado;
+  },
 
-    // Colaborador envia o mês corrente para avaliação do gestor. Só mexe no
-    // registro daquele mês — o status geral do indicador (EM_ANDAMENTO)
-    // não muda, ele só fecha de vez com validarPeriodoFinal.
-    solicitarMes: (id, mes, userId, userNome, nota) => {
-      const now = new Date().toISOString();
-      set((state) => ({
-        indicators: state.indicators.map((ind) => {
-          if (ind.id !== id) return ind;
-          const registros = (ind.registrosMensais ?? []).filter((r) => r.mes !== mes);
-          const registro: RegistroMensal = {
-            mes,
-            status: 'AGUARDANDO_GESTOR',
-            nota: nota?.trim() || null,
-            enviado_em: now,
-          };
-          return { ...ind, registrosMensais: [...registros, registro], atualizado_em: now };
-        }),
-        history: pushHistory(state.history, {
-          indicador_id: id,
-          usuario_alterou_id: userId,
-          usuario_nome: userNome,
-          tipo_alteracao: 'SOLICITACAO_CONCLUSAO',
-          campo_alterado: `mes:${mes}`,
-          valor_anterior: null,
-          valor_novo: 'AGUARDANDO_GESTOR',
-          motivo: nota?.trim() ? nota.trim() : `Colaborador enviou o mês ${mes} para avaliação`,
-        }),
-      }));
-    },
+  deleteIndicador: async (id) => {
+    await apiClient.delete(`/indicators/${id}`);
+    set((state) => ({ indicators: state.indicators.filter((ind) => ind.id !== id) }));
+  },
 
-    // Gestor aprova o mês — não afeta o atendimento anual, é só o registro
-    // mensal que fica marcado como aprovado (validação final quem fecha o
-    // atendimento é o RH, com validarPeriodoFinal).
-    aprovarMes: (id, mes, userId, userNome, observacao) => {
-      const now = new Date().toISOString();
-      set((state) => ({
-        indicators: state.indicators.map((ind) => {
-          if (ind.id !== id) return ind;
-          const registros = (ind.registrosMensais ?? []).map((r) =>
-            r.mes === mes ? { ...r, status: 'APROVADO' as const, observacaoGestor: observacao?.trim() || null, aprovado_em: now } : r,
-          );
-          return { ...ind, registrosMensais: registros, atualizado_em: now };
-        }),
-        history: pushHistory(state.history, {
-          indicador_id: id,
-          usuario_alterou_id: userId,
-          usuario_nome: userNome,
-          tipo_alteracao: 'APROVACAO_GESTOR',
-          campo_alterado: `mes:${mes}`,
-          valor_anterior: 'AGUARDANDO_GESTOR',
-          valor_novo: 'APROVADO',
-          motivo: `Mês ${mes} aprovado pelo gestor do departamento`,
-          observacao: observacao?.trim() ? observacao.trim() : null,
-        }),
-      }));
-    },
+  historyFor: (indicadorId) => get().historicoCache[indicadorId] ?? [],
 
-    // Gestor rejeita o mês — volta pro colaborador reenviar aquele mês.
-    rejeitarMes: (id, mes, userId, userNome, motivo) => {
-      const now = new Date().toISOString();
-      set((state) => ({
-        indicators: state.indicators.map((ind) => {
-          if (ind.id !== id) return ind;
-          const registros = (ind.registrosMensais ?? []).filter((r) => r.mes !== mes);
-          return { ...ind, registrosMensais: registros, atualizado_em: now };
-        }),
-        history: pushHistory(state.history, {
-          indicador_id: id,
-          usuario_alterou_id: userId,
-          usuario_nome: userNome,
-          tipo_alteracao: 'REJEICAO',
-          campo_alterado: `mes:${mes}`,
-          valor_anterior: 'AGUARDANDO_GESTOR',
-          valor_novo: 'PENDENTE',
-          motivo,
-        }),
-      }));
-    },
-
-    // RH/controller fecha o indicador mensal de vez, depois que o período
-    // termina — só essa validação final conta pro atendimento anual.
-    validarPeriodoFinal: (id, userId, userNome, observacao) => {
-      mudarStatus(
-        id,
-        ['EM_ANDAMENTO', 'ATRASADO'],
-        'CONCLUIDO',
-        userId,
-        userNome,
-        'APROVACAO_RH',
-        'Validação final do período aprovada pelo RH — indicador concluído',
-        { atendimento: 100, concluido_em: new Date().toISOString() },
-        observacao,
-      );
-    },
-
-    updateIndicador: (id, updates, userId, userNome, motivo) => {
-      const indicador = get().indicators.find((i) => i.id === id);
-      if (!indicador) return;
-      const now = new Date().toISOString();
-
-      set((state) => ({
-        indicators: state.indicators.map((ind) =>
-          ind.id === id ? { ...ind, ...updates, atualizado_em: now } : ind,
-        ),
-        history: pushHistory(state.history, {
-          indicador_id: id,
-          usuario_alterou_id: userId,
-          usuario_nome: userNome,
-          tipo_alteracao: 'EDICAO',
-          campo_alterado: Object.keys(updates).join(', '),
-          valor_anterior: null,
-          valor_novo: updates,
-          motivo: motivo ?? null,
-        }),
-      }));
-    },
-
-    reatribuir: (id, novoResponsavelId, novoResponsavelNome, userId, userNome, motivo) => {
-      const indicador = get().indicators.find((i) => i.id === id);
-      if (!indicador) return;
-      const now = new Date().toISOString();
-
-      set((state) => ({
-        indicators: state.indicators.map((ind) =>
-          ind.id === id
-            ? { ...ind, usuario_responsavel_id: novoResponsavelId, responsavel: novoResponsavelNome, atualizado_em: now }
-            : ind,
-        ),
-        history: pushHistory(state.history, {
-          indicador_id: id,
-          usuario_alterou_id: userId,
-          usuario_nome: userNome,
-          tipo_alteracao: 'REATRIBUICAO',
-          campo_alterado: 'responsavel',
-          valor_anterior: indicador.responsavel,
-          valor_novo: novoResponsavelNome,
-          motivo: motivo ?? null,
-        }),
-      }));
-    },
-
-    addAnexo: (id, anexo, userId, userNome) => {
-      const now = new Date().toISOString();
-      set((state) => ({
-        indicators: state.indicators.map((ind) =>
-          ind.id === id ? { ...ind, anexos: [...ind.anexos, anexo], atualizado_em: now } : ind,
-        ),
-        history: pushHistory(state.history, {
-          indicador_id: id,
-          usuario_alterou_id: userId,
-          usuario_nome: userNome,
-          tipo_alteracao: 'EDICAO',
-          campo_alterado: 'anexos',
-          valor_anterior: null,
-          valor_novo: anexo.nome_arquivo,
-          motivo: 'Documento anexado',
-        }),
-      }));
-    },
-
-    removeAnexo: (id, anexoId) => {
-      set((state) => ({
-        indicators: state.indicators.map((ind) =>
-          ind.id === id ? { ...ind, anexos: ind.anexos.filter((a) => a.id !== anexoId) } : ind,
-        ),
-      }));
-    },
-
-    createIndicador: (data, userId, userNome) => {
-      const now = new Date().toISOString();
-      const novo: Indicador = {
-        id: newId('ind'),
-        ...data,
-        detalhamento: data.detalhamento ?? '',
-        status: 'EM_ANDAMENTO',
-        atendimento: 0,
-        concluido_em: null,
-        criado_em: now,
-        atualizado_em: now,
-        anexos: [],
-      };
-
-      set((state) => ({
-        indicators: [novo, ...state.indicators],
-        history: pushHistory(state.history, {
-          indicador_id: novo.id,
-          usuario_alterou_id: userId,
-          usuario_nome: userNome,
-          tipo_alteracao: 'CRIACAO',
-          campo_alterado: null,
-          valor_anterior: null,
-          valor_novo: novo.id,
-          motivo: 'Indicador criado',
-        }),
-      }));
-    },
-
-    deleteIndicador: (id) => {
-      set((state) => ({ indicators: state.indicators.filter((ind) => ind.id !== id) }));
-    },
-
-    historyFor: (indicadorId) => get().history.filter((h) => h.indicador_id === indicadorId),
-
-    // Nota que o colaborador escreveu na solicitação de conclusão em aberto (para a tela de Aprovações)
-    notaConclusaoAtual: (indicadorId) => {
-      const entrada = get()
-        .history.filter((h) => h.indicador_id === indicadorId)
-        .find((h) => h.tipo_alteracao === 'SOLICITACAO_CONCLUSAO');
-      return entrada?.motivo ?? null;
-    },
-
-    // Observação que o gestor do departamento escreveu ao aprovar (1º nível) —
-    // exibida para o RH na fila de avaliação final.
-    observacaoGestor: (indicadorId) => {
-      const entrada = get()
-        .history.filter((h) => h.indicador_id === indicadorId)
-        .find((h) => h.tipo_alteracao === 'APROVACAO_GESTOR');
-      return entrada?.observacao ?? null;
-    },
-
-    // Observação que o RH escreveu ao dar a avaliação final — exibida para o
-    // colaborador responsável assim que o indicador é concluído.
-    observacaoRH: (indicadorId) => {
-      const entrada = get()
-        .history.filter((h) => h.indicador_id === indicadorId)
-        .find((h) => h.tipo_alteracao === 'APROVACAO_RH');
-      return entrada?.observacao ?? null;
-    },
-
-    // % do peso que o gestor marcou na Tabela de Atingimento ao aprovar (1º
-    // nível) — para o colaborador acompanhar o resultado mesmo antes da
-    // avaliação final do RH.
-    percentualGestorAtingido: (indicadorId) => {
-      const entrada = get()
-        .history.filter((h) => h.indicador_id === indicadorId)
-        .find((h) => h.tipo_alteracao === 'APROVACAO_GESTOR');
-      return entrada?.percentualAtingido ?? null;
-    },
-  };
-});
+  notaConclusaoAtual: (indicadorId) => get().indicators.find((i) => i.id === indicadorId)?.notaConclusaoAtual ?? null,
+  observacaoGestor: (indicadorId) => get().indicators.find((i) => i.id === indicadorId)?.observacaoGestor ?? null,
+  observacaoRH: (indicadorId) => get().indicators.find((i) => i.id === indicadorId)?.observacaoRH ?? null,
+  percentualGestorAtingido: () => null,
+}));

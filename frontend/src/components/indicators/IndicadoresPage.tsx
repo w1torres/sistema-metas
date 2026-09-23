@@ -31,7 +31,7 @@ interface ColaboradorGrupo {
 }
 
 export default function IndicadoresPage() {
-  const { indicators, historyFor } = useIndicatorStore();
+  const { indicators, historyFor, fetchHistorico } = useIndicatorStore();
   const departments = useDepartmentStore((s) => s.departments);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -218,7 +218,10 @@ export default function IndicadoresPage() {
                 defaultExpanded={bulkExpanded ?? grupos.length <= 10}
                 onEditar={setEditando}
                 onMudarResponsavel={setReatribuindo}
-                onHistorico={(indicador) => setHistoricoId(indicador.id)}
+                onHistorico={(indicador) => {
+                  setHistoricoId(indicador.id);
+                  fetchHistorico(indicador.id).catch(() => {});
+                }}
               />
             ))}
           </div>

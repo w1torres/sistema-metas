@@ -116,14 +116,12 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
           observacao ? `Observação / Sinalização: ${observacao}` : null,
         ].filter((parte): parte is string => !!parte);
 
-        createIndicador(
-          {
+        try {
+          await createIndicador({
             nome: nomeIndicador,
             peso,
             departamento_id: responsavel.departamento_id,
-            departamento: responsavel.departamento,
             usuario_responsavel_id: responsavel.id,
-            responsavel: responsavel.nome,
             objetivo: descricao,
             data_inicio: safraAtual.dataInicio,
             data_fim: safraAtual.dataFim,
@@ -132,12 +130,11 @@ export default function ImportPlanilhaModal({ isOpen, onClose }: ImportPlanilhaM
             meta,
             formaMedicao,
             evidenciaObrigatoria,
-          },
-          currentUser.id,
-          currentUser.nome,
-        );
-
-        indicadoresCriados += 1;
+          });
+          indicadoresCriados += 1;
+        } catch (err) {
+          erros.push({ linha, motivo: err instanceof Error ? err.message : 'Falha ao criar o indicador' });
+        }
       }
 
       setResult({ indicadoresCriados, erros });

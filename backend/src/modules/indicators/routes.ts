@@ -31,4 +31,5 @@ indicatorsRouter.patch('/:id/approve', requireRole(...GESTAO_ROLES), controller.
 indicatorsRouter.get('/:id/history', controller.history);
 indicatorsRouter.get('/:id/attachments', controller.listAttachments);
 indicatorsRouter.post('/:id/attachments', uploadAttachment.single('file'), controller.addAttachment);
+indicatorsRouter.get('/:id/attachments/:attachmentId/download', controller.downloadAttachment);
 indicatorsRouter.delete('/:id/attachments/:attachmentId', controller.removeAttachment);

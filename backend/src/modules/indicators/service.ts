@@ -98,6 +98,7 @@ type UpdateInput = Partial<
     Indicador,
     | 'nome'
     | 'peso'
+    | 'status'
     | 'objetivo'
     | 'detalhamento'
     | 'data_inicio'
@@ -111,9 +112,21 @@ type UpdateInput = Partial<
   >
 >;
 
+// Só estes 3 podem ser setados "na mão" pela edição livre — os demais
+// (AGUARDANDO_APROVACAO, AGUARDANDO_RH, CONCLUIDO) só são alcançados pelas
+// transições próprias (solicitarConclusao/aprovar/etc.), nunca por edição
+// direta, senão pula a auditoria e as regras de cada etapa.
+const STATUS_EDITAVEIS_LIVREMENTE: IndicadorStatus[] = ['EM_ANDAMENTO', 'ATRASADO', 'PAUSADO'];
+
 export async function updateIndicador(user: AuthUser, id: string, fields: UpdateInput): Promise<Indicador> {
   const indicador = await requireVisible(user, id);
   if (!canManage(user, indicador)) throw ApiError.forbidden();
+
+  if (fields.status && !STATUS_EDITAVEIS_LIVREMENTE.includes(fields.status)) {
+    throw ApiError.badRequest(
+      `Status "${fields.status}" só pode ser alcançado pelo fluxo de aprovação, não por edição direta`,
+    );
+  }
 
   const atualizado = await repository.update(id, fields);
   if (!atualizado) throw ApiError.notFound('Indicador não encontrado');
@@ -188,7 +201,10 @@ export async function solicitarConclusao(user: AuthUser, id: string, nota?: stri
     valor_novo: 'AGUARDANDO_APROVACAO',
     motivo: nota?.trim() ? nota.trim() : 'Colaborador solicitou conclusão (sem observações)',
   });
-  return atualizado;
+  // Recarrega — a nota que acabou de entrar em indicador_updates é embutida
+  // no indicador via subquery (ver repository.ts), então só aparece depois
+  // do pushHistory (`atualizado` acima foi buscado antes da nota existir).
+  return (await repository.findById(id))!;
 }
 
 export async function cancelarSolicitacao(user: AuthUser, id: string): Promise<Indicador> {
@@ -263,7 +279,7 @@ export async function aprovar(
       motivo: aprovado ? 'Aprovado pelo gestor do departamento' : 'Rejeitado pelo gestor do departamento',
       observacao: observacao?.trim() || null,
     });
-    return atualizado;
+    return (await repository.findById(id))!;
   }
 
   if (user.role === 'MASTER') {
@@ -284,7 +300,7 @@ export async function aprovar(
       motivo: aprovado ? 'Aprovado pelo MASTER — indicador concluído' : 'Rejeitado pelo MASTER',
       observacao: observacao?.trim() || null,
     });
-    return atualizado;
+    return (await repository.findById(id))!;
   }
 
   throw ApiError.forbidden();
@@ -341,4 +357,18 @@ export async function removeAttachment(user: AuthUser, id: string, attachmentId:
   if (!attachment || attachment.indicador_id !== id) throw ApiError.notFound('Anexo não encontrado');
   if (!canManage(user, indicador) && attachment.usuario_id !== user.id) throw ApiError.forbidden();
   await repository.removeAttachment(attachmentId);
+}
+
+// Mesma regra de visibilidade do indicador — quem pode ver o indicador pode
+// baixar o anexo dele. Retorna o caminho em disco (armazenamento local, ver
+// middleware/upload.ts) pro controller servir o arquivo.
+export async function getAttachmentFile(
+  user: AuthUser,
+  id: string,
+  attachmentId: string,
+): Promise<{ path: string; nomeArquivo: string; tipoMime: string | null }> {
+  await requireVisible(user, id);
+  const attachment = await repository.findAttachment(attachmentId);
+  if (!attachment || attachment.indicador_id !== id) throw ApiError.notFound('Anexo não encontrado');
+  return { path: attachment.url, nomeArquivo: attachment.nome_arquivo, tipoMime: attachment.tipo_mime };
 }

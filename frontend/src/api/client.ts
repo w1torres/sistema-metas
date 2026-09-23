@@ -41,6 +41,25 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return body.data as T;
 }
 
+// Upload multipart (ex.: anexo de indicador, import de planilha) — sem
+// Content-Type manual: o navegador seta `multipart/form-data; boundary=...`
+// sozinho ao ver um body FormData, e sobrescrever isso quebra o parse no
+// servidor (multer não reconhece o boundary).
+async function requestForm<T>(path: string, method: string, form: FormData): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_URL}/api${path}`, { method, headers, body: form });
+  if (res.status === 204) return undefined as T;
+  const body = await res.json().catch(() => null);
+
+  if (!res.ok || !body?.success) {
+    throw new ApiClientError(res.status, body?.error ?? `Erro ${res.status} ao chamar ${path}`);
+  }
+  return body.data as T;
+}
+
 export const apiClient = {
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
   post: <T>(path: string, body?: unknown) =>
@@ -50,4 +69,25 @@ export const apiClient = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body !== undefined ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  postForm: <T>(path: string, form: FormData) => requestForm<T>(path, 'POST', form),
+
+  // Baixa um arquivo autenticado (Bearer no header — não dá pra usar um
+  // <a href> puro) e dispara o "Salvar como" do navegador via um link
+  // temporário apontando pro blob baixado.
+  downloadFile: async (path: string, nomeArquivo: string): Promise<void> => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${API_URL}/api${path}`, { headers });
+    if (!res.ok) throw new ApiClientError(res.status, `Erro ${res.status} ao baixar ${nomeArquivo}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
 };

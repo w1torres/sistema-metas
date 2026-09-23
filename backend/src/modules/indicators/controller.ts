@@ -64,6 +64,7 @@ export async function create(req: Request, res: Response): Promise<void> {
 const updateSchema = Joi.object({
   nome: Joi.string().min(3).max(255),
   peso: Joi.number().min(0).max(100),
+  status: Joi.string().valid('EM_ANDAMENTO', 'ATRASADO', 'PAUSADO'),
   objetivo: Joi.string().allow(null, ''),
   detalhamento: Joi.string().allow(null, ''),
   data_inicio: Joi.date().iso(),
@@ -145,6 +146,16 @@ export async function addAttachment(req: Request, res: Response): Promise<void> 
 
 export async function listAttachments(req: Request, res: Response): Promise<void> {
   ok(res, await service.listAttachments(req.user!, req.params.id));
+}
+
+export async function downloadAttachment(req: Request, res: Response): Promise<void> {
+  const { path, nomeArquivo, tipoMime } = await service.getAttachmentFile(
+    req.user!,
+    req.params.id,
+    req.params.attachmentId,
+  );
+  if (tipoMime) res.type(tipoMime);
+  res.download(path, nomeArquivo);
 }
 
 export async function removeAttachment(req: Request, res: Response): Promise<void> {

@@ -121,6 +121,13 @@ export interface Indicador {
   // Ausente == 'ANUAL' (indicadores existentes continuam no fluxo de sempre).
   periodicidade?: PeriodicidadeIndicador;
   registrosMensais?: RegistroMensal[];
+  // Embutidos pelo backend (subquery, ver repository.ts lá) — última nota/
+  // observação de cada tipo, sem precisar buscar o histórico completo só
+  // pra mostrar isso no card (ver indicatorStore notaConclusaoAtual/
+  // observacaoGestor/observacaoRH).
+  notaConclusaoAtual?: string | null;
+  observacaoGestor?: string | null;
+  observacaoRH?: string | null;
 }
 
 export interface IndicadorUpdate {

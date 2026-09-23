@@ -82,21 +82,31 @@ export default function UsuariosPage() {
     setExcluindo({ id, nome, qtdIndicadores });
   }
 
-  function confirmarExclusao() {
+  async function confirmarExclusao() {
     if (!excluindo) return;
-    // Exclui junto os indicadores desse usuário — sem isso, dados de teste
-    // (usuário + indicadores) nunca poderiam ser limpos antes de ir pra
-    // produção, já que um usuário com indicador não podia ser removido.
-    indicators
-      .filter((i) => i.usuario_responsavel_id === excluindo.id)
-      .forEach((i) => deleteIndicador(i.id));
-    removeUser(excluindo.id);
-    toast.success(
-      excluindo.qtdIndicadores > 0
-        ? `${excluindo.nome} e ${excluindo.qtdIndicadores} indicador(es) dele(a) excluídos.`
-        : `${excluindo.nome} excluído(a).`,
-    );
-    setExcluindo(null);
+    try {
+      // Exclui junto os indicadores desse usuário — sem isso, dados de teste
+      // (usuário + indicadores) nunca poderiam ser limpos antes de ir pra
+      // produção, já que um usuário com indicador não podia ser removido.
+      const doUsuario = indicators.filter((i) => i.usuario_responsavel_id === excluindo.id);
+      for (const indicador of doUsuario) {
+        await deleteIndicador(indicador.id);
+      }
+      const resultado = await removeUser(excluindo.id);
+      if (!resultado.ok) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(
+        excluindo.qtdIndicadores > 0
+          ? `${excluindo.nome} e ${excluindo.qtdIndicadores} indicador(es) dele(a) excluídos.`
+          : `${excluindo.nome} excluído(a).`,
+      );
+    } catch {
+      toast.error('Não foi possível excluir os indicadores deste usuário.');
+    } finally {
+      setExcluindo(null);
+    }
   }
 
   return (
