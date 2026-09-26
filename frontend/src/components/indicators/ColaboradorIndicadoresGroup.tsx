@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Indicador } from '../../types';
-import IndicadorRow from './IndicadorRow';
+import IndicadorAdminCard from './IndicadorAdminCard';
 import { initials, formatPercent } from '../../utils/formatters';
 import { calcularPercentualPonderado } from '../../utils/ppr';
 
@@ -54,9 +54,9 @@ export default function ColaboradorIndicadoresGroup({
       </button>
 
       {expanded && (
-        <div className="divide-y divide-border">
+        <div className="grid grid-cols-1 gap-3 border-t border-border p-4 md:grid-cols-2">
           {indicadores.map((indicador) => (
-            <IndicadorRow
+            <IndicadorAdminCard
               key={indicador.id}
               indicador={indicador}
               onEditar={() => onEditar(indicador)}

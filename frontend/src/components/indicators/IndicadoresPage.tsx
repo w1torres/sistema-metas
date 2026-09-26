@@ -13,6 +13,7 @@ import { Input, Select } from '../common/Input';
 import { OPCOES_CARDS_POR_PAGINA, STATUS_META, STATUS_OPTIONS } from '../../utils/constants';
 import { downloadCSV, toCSV } from '../../utils/csv';
 import { getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
+import { compararNomes } from '../../utils/formatters';
 import type { Indicador } from '../../types';
 
 // Carregado só quando o modal é aberto — arrasta a lib de planilha (xlsx),
@@ -81,7 +82,12 @@ export default function IndicadoresPage() {
         });
       }
     });
-    return Array.from(porResponsavel.values()).sort((a, b) => a.responsavel.localeCompare(b.responsavel));
+    return Array.from(porResponsavel.values())
+      .map((grupo) => ({
+        ...grupo,
+        indicadores: [...grupo.indicadores].sort((a, b) => compararNomes(a.nome, b.nome)),
+      }))
+      .sort((a, b) => compararNomes(a.responsavel, b.responsavel));
   }, [filtrados]);
 
   const totalPaginas = Math.max(1, Math.ceil(grupos.length / cardsPorPagina));

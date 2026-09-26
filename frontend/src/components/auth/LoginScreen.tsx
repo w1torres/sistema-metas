@@ -117,7 +117,7 @@ export default function LoginScreen() {
 
         <Button
           type="button"
-          variant="secondary"
+          variant="microsoft"
           onClick={handleEntraId}
           loading={loading}
           className="mb-4 w-full"

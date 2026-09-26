@@ -53,6 +53,12 @@ export function formatarNomeProprio(nome: string): string {
     .join(' ');
 }
 
+// Ordem alfabética pt-BR ignorando acento e caixa ("Álvaro" fica junto do "A",
+// não depois do "Z").
+export function compararNomes(a: string, b: string): number {
+  return a.localeCompare(b, 'pt-BR', { sensitivity: 'base' });
+}
+
 export function initials(nome: string): string {
   return nome
     .split(' ')

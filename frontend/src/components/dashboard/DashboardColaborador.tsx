@@ -15,7 +15,7 @@ import Button from '../common/Button';
 import { Input, Select } from '../common/Input';
 import { getSafraAtual, getSafraForDate, listSafras } from '../../utils/safra';
 import { calcularPercentualPonderado } from '../../utils/ppr';
-import { formatPercent } from '../../utils/formatters';
+import { compararNomes, formatPercent } from '../../utils/formatters';
 import clsx from 'clsx';
 
 type FiltroStatus = 'TODOS' | 'EM_ANDAMENTO' | 'AGUARDANDO' | 'CONCLUIDO';
@@ -57,13 +57,15 @@ export default function DashboardColaborador() {
 
   const filtrados = useMemo(
     () =>
-      meusIndicadores.filter((i) => {
-        if (filtro === 'AGUARDANDO' && !STATUS_PENDENTES.includes(i.status)) return false;
-        if (filtro !== 'TODOS' && filtro !== 'AGUARDANDO' && i.status !== filtro) return false;
-        if (safraId && getSafraForDate(i.data_inicio).id !== safraId) return false;
-        if (busca && !i.nome.toLowerCase().includes(busca.toLowerCase())) return false;
-        return true;
-      }),
+      meusIndicadores
+        .filter((i) => {
+          if (filtro === 'AGUARDANDO' && !STATUS_PENDENTES.includes(i.status)) return false;
+          if (filtro !== 'TODOS' && filtro !== 'AGUARDANDO' && i.status !== filtro) return false;
+          if (safraId && getSafraForDate(i.data_inicio).id !== safraId) return false;
+          if (busca && !i.nome.toLowerCase().includes(busca.toLowerCase())) return false;
+          return true;
+        })
+        .sort((a, b) => compararNomes(a.nome, b.nome)),
     [meusIndicadores, filtro, safraId, busca],
   );
 
