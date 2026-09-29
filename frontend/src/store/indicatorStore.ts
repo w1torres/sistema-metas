@@ -51,7 +51,22 @@ interface IndicatorState {
 
   updateIndicador: (
     id: string,
-    updates: Partial<Pick<Indicador, 'nome' | 'peso' | 'status' | 'objetivo' | 'detalhamento' | 'data_inicio' | 'data_fim'>>,
+    updates: Partial<
+      Pick<
+        Indicador,
+        | 'nome'
+        | 'peso'
+        | 'status'
+        | 'objetivo'
+        | 'detalhamento'
+        | 'data_inicio'
+        | 'data_fim'
+        | 'pilar'
+        | 'meta'
+        | 'formaMedicao'
+        | 'evidenciaObrigatoria'
+      >
+    >,
   ) => Promise<void>;
   reatribuir: (id: string, novoResponsavelId: string, motivo?: string) => Promise<void>;
   addAnexo: (id: string, file: File, descricao?: string) => Promise<void>;
@@ -255,7 +270,14 @@ export const useIndicatorStore = create<IndicatorState>((set, get) => ({
   // --- fim MENSAL ---
 
   updateIndicador: async (id, updates) => {
-    const payload: Record<string, unknown> = { ...updates };
+    // formaMedicao/evidenciaObrigatoria só existem em camelCase no front —
+    // o backend espera forma_medicao/evidencia_obrigatoria (ver createIndicador
+    // logo abaixo, que já faz essa tradução). pilar/meta já batem com o nome
+    // do backend, então passam direto via `resto`.
+    const { formaMedicao, evidenciaObrigatoria, ...resto } = updates;
+    const payload: Record<string, unknown> = { ...resto };
+    if ('formaMedicao' in updates) payload.forma_medicao = formaMedicao;
+    if ('evidenciaObrigatoria' in updates) payload.evidencia_obrigatoria = evidenciaObrigatoria;
     const atualizado = mapIndicador(await apiClient.put<BackendIndicador>(`/indicators/${id}`, payload));
     set((state) => ({ indicators: substituirIndicador(state.indicators, atualizado) }));
   },

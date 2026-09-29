@@ -30,6 +30,10 @@ interface FormState {
   status: IndicadorStatus;
   objetivo: string;
   safraId: string;
+  pilar: string;
+  meta: string;
+  formaMedicao: string;
+  evidenciaObrigatoria: string;
 }
 
 function toFormState(indicador: Indicador | null): FormState {
@@ -42,6 +46,10 @@ function toFormState(indicador: Indicador | null): FormState {
       status: 'EM_ANDAMENTO',
       objetivo: '',
       safraId: getSafraAtual().id,
+      pilar: '',
+      meta: '',
+      formaMedicao: '',
+      evidenciaObrigatoria: '',
     };
   }
   return {
@@ -52,6 +60,10 @@ function toFormState(indicador: Indicador | null): FormState {
     status: indicador.status,
     objetivo: indicador.objetivo,
     safraId: getSafraForDate(indicador.data_inicio).id,
+    pilar: indicador.pilar ?? '',
+    meta: indicador.meta ?? '',
+    formaMedicao: indicador.formaMedicao ?? '',
+    evidenciaObrigatoria: indicador.evidenciaObrigatoria ?? '',
   };
 }
 
@@ -115,6 +127,10 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
           objetivo: form.objetivo,
           data_inicio: safraSelecionada.dataInicio,
           data_fim: safraSelecionada.dataFim,
+          pilar: form.pilar || undefined,
+          meta: form.meta || undefined,
+          formaMedicao: form.formaMedicao || undefined,
+          evidenciaObrigatoria: form.evidenciaObrigatoria || undefined,
         });
         toast.success('Indicador criado com sucesso!');
       } else {
@@ -125,6 +141,10 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
           objetivo: form.objetivo,
           data_inicio: safraSelecionada.dataInicio,
           data_fim: safraSelecionada.dataFim,
+          pilar: form.pilar,
+          meta: form.meta,
+          formaMedicao: form.formaMedicao,
+          evidenciaObrigatoria: form.evidenciaObrigatoria,
         });
         toast.success('Indicador atualizado com sucesso!');
       }
@@ -236,6 +256,33 @@ export default function EditIndicadorModal({ isOpen, onClose, indicador }: EditI
           value={form.objetivo}
           onChange={(e) => setForm((f) => ({ ...f, objetivo: e.target.value }))}
           rows={3}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Pilar"
+            value={form.pilar}
+            onChange={(e) => setForm((f) => ({ ...f, pilar: e.target.value }))}
+          />
+          <Input
+            label="Meta"
+            value={form.meta}
+            onChange={(e) => setForm((f) => ({ ...f, meta: e.target.value }))}
+          />
+        </div>
+
+        <Textarea
+          label="Forma de Medição"
+          value={form.formaMedicao}
+          onChange={(e) => setForm((f) => ({ ...f, formaMedicao: e.target.value }))}
+          rows={2}
+        />
+
+        <Textarea
+          label="Evidência Obrigatória"
+          value={form.evidenciaObrigatoria}
+          onChange={(e) => setForm((f) => ({ ...f, evidenciaObrigatoria: e.target.value }))}
+          rows={2}
         />
 
         <Select
